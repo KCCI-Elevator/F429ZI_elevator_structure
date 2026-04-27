@@ -53,3 +53,8 @@ dkms.conf
 
 # debug information files
 *.dwo
+
+# STM32CubeMX and build artifacts
+build
+mx.scratch
+!.settings

@@ -1,0 +1,23 @@
+---
+BasedOnStyle: LLVM
+UseTab: Never
+ColumnLimit: 0
+SortIncludes: false
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterControlStatement: Never
+  BeforeElse: true
+IndentCaseLabels: true
+---
+Language: C
+IndentWidth: 4
+TabWidth: 4
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLoopsOnASingleLine: true
+
+---
+Language: Cpp
+IndentWidth: 2
+TabWidth: 2
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLoopsOnASingleLine: true

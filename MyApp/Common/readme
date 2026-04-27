@@ -1,0 +1,10 @@
+/* 주의 사항*/
+위치:
+    MyApp/Common
+
+역할:
+    공통 define
+    공통 typedef
+    공통 enum
+    공통 macro
+    하드웨어 핀/핸들 연결용 설정
