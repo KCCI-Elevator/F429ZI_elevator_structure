@@ -1,7 +1,11 @@
 #ifndef __MAP_BSP__BSP_H_
 #define __MAP_BSP__BSP_H_
 
+#include <string.h>
+
 #include "def.h"
+#include "hw.h"
+#include "motor.h"
 
 // typedef
 typedef enum {
