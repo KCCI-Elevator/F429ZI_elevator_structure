@@ -2,6 +2,7 @@
 #define __MY_AP__AP_H__
 
 #include <stdint.h>
+#include <stdio.h>
 
 #include "bsp.h"
 #include "elevator.h"

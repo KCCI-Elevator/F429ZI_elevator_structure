@@ -2,6 +2,10 @@
 #define __MAP_BSP__BSP_H_
 
 #include "def.h"
+#include "hw.h"
+#include "hw_def.h"
+#include "motor.h"
+
 
 // typedef
 typedef enum {
