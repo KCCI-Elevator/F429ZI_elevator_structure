@@ -47,7 +47,7 @@ void motorSetSpeed(MotorDir_t dir, uint32_t duty) {
         motorStop();
         return;
     }
-    myPwmSetDuty(duty);
+    myPwmSetDuty(4500);
 }
 
 void motorStop(void) {

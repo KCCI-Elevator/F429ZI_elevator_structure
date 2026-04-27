@@ -1,7 +1,6 @@
 #include "ap.h"
 #include "motor.h"
-// inner
-// static elevator_t elevator;
+#include <stdio.h>
 
 // task Init
 void StartDefaultTask(void *argument) {
@@ -20,44 +19,88 @@ void motorTask(void *argument) {
 
 // function
 void apInit(void) {
-    bspInit();
-
-    // elevatorInit(&elevator);
+    bspInit(); // 내부에서 motorInit()이 호출되어 클럭 및 GPIO가 초기화되어야 합니다.
 }
 
 void apMain(void) {
-    // 1. 부팅 후 3초 대기 (MobaXterm을 켜고 준비할 시간을 줍니다)
-    printf("System Booting...\r\n");
-    printf("Step Response Test will start in 3 seconds...\r\n");
+    // 1. 부팅 및 준비 대기
+    printf("\r\n--- Full System Identification Start ---\r\n");
+    printf("Wait 3 seconds for MobaXterm logging...\r\n");
     bspDelay(3000);
 
-    // 2. 실험 시작 알림 및 CSV 헤더 출력
-    printf("--- Step Response Test Start ---\r\n");
-    printf("Time(ms), EncoderCount\r\n");
+    // CSV 헤더 출력 (구분자 포함)
+    printf("Phase, Time(ms), EncoderCount\r\n");
 
-    // 3. 하드웨어 초기화 및 100% 전압 인가
+    uint32_t start_time;
+    uint32_t current_time;
+
+    // ==========================================
+    // 2. CW (정방향) 가속 테스트 (100% PWM, 1초)
+    // ==========================================
     motorClearEncoder();
-    motorSetSpeed(MOTOR_DIR_CW, 4500); // ARR이 4500일 때 100% Duty
+    motorSetSpeed(MOTOR_DIR_CW, 4500); 
+    start_time = bspMillis();
+    current_time = 0;
 
-    uint32_t start_time = bspMillis();
-    uint32_t current_time = 0;
-
-    // 4. 2초(2000ms) 동안 10ms 간격으로 캡처
-    while (current_time <= 2000) {
+    while (current_time <= 1000) {
         uint32_t now = bspMillis();
-        
         if (now - start_time >= current_time) {
-            // 현재 시간(ms)과 엔코더 누적 카운트를 출력
-            printf("%lu, %ld\r\n", current_time, motorGetEncoderCount());
+            printf("CW_ACC, %lu, %ld\r\n", current_time, motorGetEncoderCount());
             current_time += 10; 
         }
     }
 
-    // 5. 2초가 지나면 모터 즉시 정지
-    motorStop();
-    printf("--- Test End ---\r\n");
+    // ==========================================
+    // 3. CW (정방향) 감속/정지 테스트 (0% PWM, 0.5초)
+    // ==========================================
+    motorStop(); // 전압 차단 (마찰력과 관성으로만 멈춤)
+    start_time = bspMillis(); // 시간 축을 0부터 다시 계산 (분석 용이성)
+    current_time = 0;
 
-    // 6. 실험이 끝났으므로 무한 대기 (더 이상 아무것도 하지 않음)
+    while (current_time <= 500) {
+        uint32_t now = bspMillis();
+        if (now - start_time >= current_time) {
+            printf("CW_STOP, %lu, %ld\r\n", current_time, motorGetEncoderCount());
+            current_time += 10; 
+        }
+    }
+
+    bspDelay(1000); // 방향 전환 전 기구적 안정화 대기
+
+    // ==========================================
+    // 4. CCW (역방향) 가속 테스트 (100% PWM, 1초)
+    // ==========================================
+    motorClearEncoder(); // 역방향 측정을 위해 0으로 다시 초기화
+    motorSetSpeed(MOTOR_DIR_CCW, 4500); 
+    start_time = bspMillis();
+    current_time = 0;
+
+    while (current_time <= 1000) {
+        uint32_t now = bspMillis();
+        if (now - start_time >= current_time) {
+            printf("CCW_ACC, %lu, %ld\r\n", current_time, motorGetEncoderCount());
+            current_time += 10; 
+        }
+    }
+
+    // ==========================================
+    // 5. CCW (역방향) 감속/정지 테스트 (0% PWM, 0.5초)
+    // ==========================================
+    motorStop();
+    start_time = bspMillis();
+    current_time = 0;
+
+    while (current_time <= 500) {
+        uint32_t now = bspMillis();
+        if (now - start_time >= current_time) {
+            printf("CCW_STOP, %lu, %ld\r\n", current_time, motorGetEncoderCount());
+            current_time += 10; 
+        }
+    }
+
+    printf("--- All Tests Completed ---\r\n");
+
+    // 6. 무한 루프 (재실행 방지)
     while (1) {
         bspDelay(1000);
     }
