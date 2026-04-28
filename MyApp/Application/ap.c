@@ -1,7 +1,7 @@
 #include "ap.h"
 
 // inner
-//static elevator_t elevator;
+static elevator_t elevator;
 
 // task Init
 void StartDefaultTask(void *argument) {
@@ -22,7 +22,7 @@ void motorTask(void *argument) {
 void apInit(void) {
     bspInit();
 
-    elevatorInit();//&elevator);
+    elevatorInit(&elevator);
 }
 
 void apMain(void) {
@@ -36,7 +36,7 @@ void apMain(void) {
             prev_time = now;
 
             bspUpdate();
-            //elevatorUpdate(&elevator, now);
+            elevatorUpdate(&elevator, now);
         }
         bspDelay(1);
     }
