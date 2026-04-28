@@ -9,5 +9,5 @@ uint32_t hwMillis(void){
 }
 
 void hwDelay(uint32_t delay_ms){
-    HAL_Delay(delay_ms);
+    osDelay(delay_ms);
 }
