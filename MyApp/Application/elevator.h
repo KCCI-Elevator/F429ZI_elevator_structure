@@ -34,6 +34,7 @@ typedef struct {
 } elevator_t;
 
 // function
-void elevatorInit();
+void elevatorInit(elevator_t *ctx);
+void elevatorUpdate(elevator_t *ctx, uint32_t now);
 
 #endif //__MAP_AP__ELEVATOR_H__
