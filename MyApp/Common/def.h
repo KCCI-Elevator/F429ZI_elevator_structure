@@ -4,6 +4,8 @@
 // standard header
 #include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
+#include <stdio.h>
 
 // define
 #define   OK    0

@@ -61,6 +61,13 @@ const osThreadAttr_t myTaskMotor_attributes = {
   .stack_size = 256 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
+/* Definitions for myTaskKeypad */
+osThreadId_t myTaskKeypadHandle;
+const osThreadAttr_t myTaskKeypad_attributes = {
+  .name = "myTaskKeypad",
+  .stack_size = 512 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -69,6 +76,7 @@ const osThreadAttr_t myTaskMotor_attributes = {
 
 void StartDefaultTask(void *argument);
 void motorTask(void *argument);
+void StartKeypadTask(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -104,6 +112,9 @@ void MX_FREERTOS_Init(void) {
 
   /* creation of myTaskMotor */
   myTaskMotorHandle = osThreadNew(motorTask, NULL, &myTaskMotor_attributes);
+
+  /* creation of myTaskKeypad */
+  myTaskKeypadHandle = osThreadNew(StartKeypadTask, NULL, &myTaskKeypad_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -149,6 +160,24 @@ __weak void motorTask(void *argument)
     osDelay(1);
   }
   /* USER CODE END motorTask */
+}
+
+/* USER CODE BEGIN Header_StartKeypadTask */
+/**
+* @brief Function implementing the myTask03 thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartKeypadTask */
+__weak void StartKeypadTask(void *argument)
+{
+  /* USER CODE BEGIN StartKeypadTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartKeypadTask */
 }
 
 /* Private application code --------------------------------------------------*/

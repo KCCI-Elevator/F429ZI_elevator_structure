@@ -3,10 +3,12 @@
 
 // cubeMX board header
 #include "main.h"
-#include "adc.h"
+// #include "adc.h"
 #include "gpio.h"
 #include "can.h"
 #include "tim.h"
+#include "uart.h"
+
 
 #include "cmsis_os2.h"
 
