@@ -3,6 +3,19 @@
 #include <stdio.h>
 #include "cmsis_os2.h" // RTOS API 사용을 위해 포함
 
+void StartDefaultTask(void *argument) {
+    apInit();
+    while (1) {
+        apMain();
+    }
+}
+
+void motorTask(void *argument) {
+    while (1) {
+        osDelay(1);
+    }
+}
+
 void apInit(void) {
     bspInit(); 
 }
