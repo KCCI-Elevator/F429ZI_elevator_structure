@@ -1,0 +1,35 @@
+/* 전체 구조 */
+MyApp
+├─ Application
+│  ├─ ap.c
+│  ├─ ap.h
+│  ├─ elevator.c
+│  └─ elevator.h
+│
+├─ BSP
+│  ├─ bsp.c
+│  └─ bsp.h
+│
+├─ Hardware
+│  ├─ hw.c
+│  ├─ hw.h
+│  ├─ my_adc.c
+│  ├─ my_adc.h
+│  ├─ my_can.c
+│  ├─ my_can.h
+│  ├─ my_gpio.c
+│  ├─ my_gpio.h
+│  ├─ my_pwm.c
+│  └─ my_pwm.c
+│
+├─ Driver
+│  ├─ motor.c
+│  ├─ motor.h
+│  ├─ button.c
+│  ├─ button.h
+│  ├─ floor_sensor.c
+│  └─ floor_sensor.h
+│
+└─ Common
+   ├─ def.h
+   └─ hw_def.h

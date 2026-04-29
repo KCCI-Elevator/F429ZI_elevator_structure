@@ -1,0 +1,18 @@
+/* 주의 사항*/
+위치:
+    MyApp/Hardware
+
+역할:
+    GPIO 제어
+    PWM 제어
+    ADC 읽기
+    CAN 송수신
+    타이머 tick
+    인터럽트 처리
+
+/* 역할 */
+hw.c/h       → 하드웨어 전체 초기화, tick, delay, callback 분배
+my_gpio.c/h  → HAL_GPIO_ReadPin/WritePin 감싸기
+my_pwm.c/h   → TIM PWM start, duty 설정
+my_adc.c/h   → ADC start, read
+my_can.c/h   → CAN tx/rx
