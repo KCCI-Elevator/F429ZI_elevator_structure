@@ -4,8 +4,6 @@
 #include <stdint.h>
 #include <stm32f4xx_hal.h>
 
-#include "cmsis_os2.h"
-
 void hwInit(void);
 
 uint32_t hwMillis(void);
