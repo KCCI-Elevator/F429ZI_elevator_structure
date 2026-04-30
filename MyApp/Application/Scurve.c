@@ -32,65 +32,68 @@ float MP_Update(MotionPlanner_t *p) {
 
         case MP_ACCEL_INC: //가속도 증가 구간.
             p->acceleration += p->jerk * p->dt;
-            if(p->acceleration >= p->max_accel)p->state = MP_ACCEL_DEC;
+            if(p->acceleration >= p->max_accel)p->state = MP_ACCEL_CONST;
             break;
 
-       /*case MP_ACCEL_CONST:
+       case MP_ACCEL_CONST:
             p->acceleration = p->max_accel; //가속도 유지
+            p->state=MP_ACCEL_DEC;
              //시간 누적.
-             p->state_timer += p->dt;
+            // p->state_timer += p->dt;
 
              //0.5초 정도 유지
-
-             if(p->state_timer >= 0.5f) {
+        /*
+             if(p->state_timer >= 0.05f) {
                 p->state_timer = 0;
                 p->state = MP_ACCEL_DEC;
-             }
-             break;*/
+             }*/
+             break;
         
 
         case MP_ACCEL_DEC:
             p->acceleration -= p->jerk * p->dt; //가속도 깎기.
             if(p->acceleration <= 0) {
                 p->acceleration = 0;
-                p->state = MP_DECEL_INC;
+                p->state = MP_CRUISE;
             }
             break;
         
-        /*case MP_CRUISE:
+        case MP_CRUISE:
             p->acceleration = 0;
             // 제동 거리 계산
             //여유를 두고 감속.v^2=v0^2+as 공식 사용.
             float t_jerk = p->max_accel / p->jerk; //가속도가 max_a에서 0이 될때까지 걸리는 시간
             //scurve 전용 제동 거리 근사식
             float braking_distance = (p->velocity*p->velocity/(2*p->max_accel))+(p->velocity * t_jerk);
-            if(fabs(dist_to_go) < braking_distance*1.1f){
+            if(fabs(dist_to_go) < braking_distance*2.2f){
                 p->state =MP_DECEL_INC;
             }
             break;
-            */
+            
         
         case MP_DECEL_INC:
             p->acceleration -= p->jerk * p->dt;
-            if(p->acceleration <= -p->max_accel) p->state = MP_DECEL_DEC;
+            if(p->acceleration <= -p->max_accel) p->state = MP_DECEL_CONST;
             break;
 
-         /*case MP_DECEL_CONST:
+         case MP_DECEL_CONST:
             p->acceleration = -p->max_accel; //가속도 유지
              //시간 누적.
             if(p->velocity <= (p->max_accel * p->max_accel / (2*p->jerk))){
                 p->state = MP_DECEL_DEC;
             }
-             break;*/
+             break;
         
         case MP_DECEL_DEC:
         p->acceleration += p->jerk * p->dt;
-            if(p->acceleration >= 0 || p->velocity <= 2.0f){
+        p->state = MP_DONE;
+        /*
+            if(p->acceleration >= 0 || p->velocity <= 0.05f){
                 p->velocity = 0;
                 p->acceleration = 0;
-                p->state = MP_DONE;
+                
 
-            }
+            }*/
             break;
         
         case MP_DONE:
