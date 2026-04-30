@@ -13,7 +13,6 @@ typedef enum {
 void motorInit(void);
 void motorSetSpeed(MotorDir_t dir, uint32_t duty);
 void motorStop(void);
-void motorDebugDump(void);
 
 int32_t motorGetEncoderCount(void);
 void motorClearEncoder(void);

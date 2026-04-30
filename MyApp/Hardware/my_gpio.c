@@ -44,24 +44,29 @@ static GPIO_TypeDef *getPortPtr(uint8_t port_idx) {
 
 // function
 // port num : 0=A, 1=B, ... , 10=K  // K[7:0]
-bool gpioExtWrite(uint8_t port_idx, uint8_t pin_num, uint8_t state) {
-    if (pin_num > 15) return false;
-    if ((port_idx == 10) && (pin_num > 7)) return false;
+
+void gpioExtInit(uint8_t port_idx, uint8_t pin_num, uint32_t mode) {
+    if (pin_num > 15) return;
+    if ((port_idx == 10) && (pin_num > 7)) return;
+
+    GPIO_TypeDef *pPort = getPortPtr(port_idx);
+    if (pPort == NULL) return;
 
     GPIO_InitTypeDef GPIO_InitStruct = {0};
     GPIO_InitStruct.Pin = (1 << pin_num);
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Mode = mode; // 예: GPIO_MODE_OUTPUT_PP
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(getPortPtr(port_idx), &GPIO_InitStruct);
+    HAL_GPIO_Init(pPort, &GPIO_InitStruct);
+}
 
+
+bool gpioExtWrite(uint8_t port_idx, uint8_t pin_num, uint8_t state) {
     GPIO_TypeDef *pPort = getPortPtr(port_idx);
-
     if (pPort == NULL) return false;
 
     uint16_t pin_mask = (1 << pin_num);
     HAL_GPIO_WritePin(pPort, pin_mask, (state > 0) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-
     return true;
 }
 

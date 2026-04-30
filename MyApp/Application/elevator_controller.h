@@ -4,7 +4,8 @@
 #include "def.h"
 
 void Elevator_Controller_Init();
-void Elevator_Controller_Update();
+bool Elevator_Controller_Update(uint8_t direction);
+void Elevator_Controller_SetTarget(float distance_mm);
 
 
 
