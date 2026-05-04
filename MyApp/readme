@@ -4,7 +4,9 @@ MyApp
 │  ├─ ap.c
 │  ├─ ap.h
 │  ├─ elevator.c
-│  └─ elevator.h
+│  ├─ elevator.h
+│  ├─ wifi.c
+│  └─ wifi.h
 │
 ├─ BSP
 │  ├─ bsp.c
@@ -20,16 +22,29 @@ MyApp
 │  ├─ my_gpio.c
 │  ├─ my_gpio.h
 │  ├─ my_pwm.c
-│  └─ my_pwm.c
+│  ├─ my_pwm.c
+│  ├─ my_uart.c
+│  └─ my_uart.h
 │
 ├─ Driver
-│  ├─ motor.c
-│  ├─ motor.h
 │  ├─ button.c
 │  ├─ button.h
+│  ├─ esp8266.c
+│  ├─ esp8266.h
 │  ├─ floor_sensor.c
-│  └─ floor_sensor.h
+│  ├─ floor_sensor.h
+│  ├─ motor.c
+│  └─ motor.h
 │
 └─ Common
    ├─ def.h
    └─ hw_def.h
+
+/* 업데이트 */ 
+# wifi module
+├─ ap.c
+├─ wifi.c/h
+├─ bsp.c/h
+├─ esp8266.c/h
+└─ my_uart.c/h
+

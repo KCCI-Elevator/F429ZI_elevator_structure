@@ -61,6 +61,13 @@ const osThreadAttr_t myTaskMotor_attributes = {
   .stack_size = 256 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
+/* Definitions for myTaskWIFI */
+osThreadId_t myTaskWIFIHandle;
+const osThreadAttr_t myTaskWIFI_attributes = {
+  .name = "myTaskWIFI",
+  .stack_size = 256 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -69,6 +76,7 @@ const osThreadAttr_t myTaskMotor_attributes = {
 
 void StartDefaultTask(void *argument);
 void motorTask(void *argument);
+void wifiTask(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -104,6 +112,9 @@ void MX_FREERTOS_Init(void) {
 
   /* creation of myTaskMotor */
   myTaskMotorHandle = osThreadNew(motorTask, NULL, &myTaskMotor_attributes);
+
+  /* creation of myTaskWIFI */
+  myTaskWIFIHandle = osThreadNew(wifiTask, NULL, &myTaskWIFI_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -149,6 +160,24 @@ __weak void motorTask(void *argument)
     osDelay(1);
   }
   /* USER CODE END motorTask */
+}
+
+/* USER CODE BEGIN Header_wifiTask */
+/**
+* @brief Function implementing the myTaskWIFI thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_wifiTask */
+__weak void wifiTask(void *argument)
+{
+  /* USER CODE BEGIN wifiTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END wifiTask */
 }
 
 /* Private application code --------------------------------------------------*/

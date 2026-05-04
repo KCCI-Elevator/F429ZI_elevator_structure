@@ -1,6 +1,12 @@
 #include "bsp.h"
 
-// inner
+// hardware
+#include "hw.h"
+#include "my_gpio.h"
+#include "my_uart.h"
+//#include "motor.h"
+
+/* elevator unit */
 static bsp_elevator_input_t elevator_input;
 
 static bool bspReadInputPin(uint8_t port_idx, uint8_t pin_num) {
@@ -59,19 +65,26 @@ static void bspUpdateFloorSensor(void) {
 
     if (detected_count == 1) {
         elevator_input.floor_valid = true;
-        elevator_input.curr_floor = detected_floor;
+        elevator_input.current_floor = detected_floor;
     }
     else {
         elevator_input.floor_valid = false;
     }
 }
 
+/* wifi unit */
+static esp8266_t esp8266;
+
 // function
-void bspInit(void) {
+bool bspInit(void) {
     memset(&elevator_input, 0, sizeof(elevator_input));
 
     hwInit();
-    // motorInit();    // from motor.c ???
+    if (uartInit() == false) return false;
+
+    esp8266_Init(&esp8266, UART_CH_ESP8266);
+
+    return true;
 }
 
 void bspUpdate(void) {
@@ -79,18 +92,18 @@ void bspUpdate(void) {
      * request_mask는 매 주기 새로 읽습니다.
      * elevator.c 내부에서 ctx->request_mask |= input.request_mask 형태로 누적하면 됩니다.
      */
-    elevator_input.req_mask = 0;
+    elevator_input.request_mask = 0;
 
     if (bspReadInputPin(BSP_BTN_FLOOR_1_PORT, BSP_BTN_FLOOR_1_PIN) == true) {
-        elevator_input.req_mask |= (1U << 0);
+        elevator_input.request_mask |= (1U << 0);
     }
 
     if (bspReadInputPin(BSP_BTN_FLOOR_2_PORT, BSP_BTN_FLOOR_2_PIN) == true) {
-        elevator_input.req_mask |= (1U << 1);
+        elevator_input.request_mask |= (1U << 1);
     }
 
     if (bspReadInputPin(BSP_BTN_FLOOR_3_PORT, BSP_BTN_FLOOR_3_PIN) == true) {
-        elevator_input.req_mask |= (1U << 2);
+        elevator_input.request_mask |= (1U << 2);
     }
 
     bspUpdateFloorSensor();
@@ -193,4 +206,8 @@ void bspDoorMotorSet(bsp_door_dir_t dir, uint16_t pwm) {
                          BSP_DOOR_MOTOR_IN2_PORT, BSP_DOOR_MOTOR_IN2_PIN);
             break;
     }
+}
+
+esp8266_t *bspGetEsp8266(void){
+    return &esp8266;
 }

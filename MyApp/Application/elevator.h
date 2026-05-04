@@ -26,9 +26,9 @@ typedef enum {
 typedef struct {
     elevator_state_t state;
 
-    uint8_t curr_floor;
+    uint8_t current_floor;
     uint8_t target_floor;
-    uint8_t req_mask;
+    uint8_t request_mask;
 
     uint32_t state_time;
 } elevator_t;

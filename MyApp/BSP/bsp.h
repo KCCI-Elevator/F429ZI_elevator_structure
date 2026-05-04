@@ -1,14 +1,12 @@
 #ifndef __MAP_BSP__BSP_H_
 #define __MAP_BSP__BSP_H_
 
-// header
+// standard header
 #include <string.h>
-#include <stddef.h>
-
 #include "def.h"
-#include "hw.h"
-#include "motor.h"
-#include "my_gpio.h"
+
+// driver
+#include "esp8266.h"
 
 // define
 
@@ -128,9 +126,9 @@ typedef enum {
 
 typedef struct {
     bool floor_valid;
-    uint8_t curr_floor;
+    uint8_t current_floor;
 
-    uint8_t req_mask;
+    uint8_t request_mask;
 
     bool top_limit;
     bool bottom_limit;
@@ -144,15 +142,18 @@ typedef struct {
 } bsp_elevator_input_t;
 
 // function
-void bspInit(void);
+bool bspInit(void);
 void bspUpdate(void);
-
+// hw
 uint32_t bspMillis(void);
 void bspDelay(uint32_t delay_ms);
-
+// gpio
 void bspElevatorReadInput(bsp_elevator_input_t *input);
 
+// motor
 void bspLiftMotorSet(bsp_lift_dir_t dir, uint16_t pwm);
 void bspDoorMotorSet(bsp_door_dir_t dir, uint16_t pwm);
+// wifi
+esp8266_t *bspGetEsp8266(void);
 
 #endif //__MAP_BSP__BSP_H_

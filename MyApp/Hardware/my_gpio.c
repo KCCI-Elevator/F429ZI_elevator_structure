@@ -84,4 +84,4 @@ int8_t gpioExtRead(uint8_t port_idx, uint8_t pin_num) {
     uint16_t pin_mask = (1 << pin_num);
 
     return HAL_GPIO_ReadPin(pPort, pin_mask) == GPIO_PIN_SET ? 1 : 0;
-}
+}   // 지속적으로 초기화 >> 비효율적 // 풀다운 저항 꼭 해야함

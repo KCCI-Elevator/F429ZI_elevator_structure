@@ -1,16 +1,10 @@
 #ifndef __MY_AP__AP_H__
 #define __MY_AP__AP_H__
 
-#include <stdint.h>
-
-#include "bsp.h"
-#include "elevator.h"
-
-#include "cmsis_os2.h"
-
 // task
 // StartDefaultTask
 // motorTask
+// wifiTask
 
 // function
 void apInit(void);

@@ -9,7 +9,7 @@ static void elevatorSetState(elevator_t *ctx, elevator_state_t state, uint32_t n
 
 static uint8_t elevatorFindNextTarget(elevator_t *ctx) {
     for (uint8_t floor = 1; floor <= ELEVATOR_FLOOR_MAX; floor++) {
-        if (ctx->req_mask & FLOOR_BIT(floor)) return floor;
+        if (ctx->request_mask & FLOOR_BIT(floor)) return floor;
     }
     return 0;
 }
@@ -17,9 +17,9 @@ static uint8_t elevatorFindNextTarget(elevator_t *ctx) {
 // function
 void elevatorInit(elevator_t *ctx) {
     ctx->state = CAR_STATE_IDLE;
-    ctx->curr_floor = 1;
+    ctx->current_floor = 1;
     ctx->target_floor = 0;
-    ctx->req_mask = 0;
+    ctx->request_mask = 0;
     ctx->state_time = 0;
 
     bspLiftMotorSet(BSP_LIFT_STOP, 0);
@@ -32,10 +32,10 @@ void elevatorUpdate(elevator_t *ctx, uint32_t now) {
     bspElevatorReadInput(&input);
 
     if (input.floor_valid == true) {
-        ctx->curr_floor = input.curr_floor;
+        ctx->current_floor = input.current_floor;
     }
 
-    ctx->req_mask |= input.req_mask;
+    ctx->request_mask |= input.request_mask;
 
     if (input.emergency_stop == true || input.motor_over_current == true) {
         bspLiftMotorSet(BSP_LIFT_STOP, 0);
@@ -54,11 +54,11 @@ void elevatorUpdate(elevator_t *ctx, uint32_t now) {
                 break;
             }
 
-            if (ctx->target_floor == ctx->curr_floor) {
-                ctx->req_mask &= ~FLOOR_BIT(ctx->curr_floor);
+            if (ctx->target_floor == ctx->current_floor) {
+                ctx->request_mask &= ~FLOOR_BIT(ctx->current_floor);
                 elevatorSetState(ctx, CAR_STATE_DOOR_OPENING, now);
             }
-            else if (ctx->target_floor > ctx->curr_floor) {
+            else if (ctx->target_floor > ctx->current_floor) {
                 bspLiftMotorSet(BSP_LIFT_UP, 700);
                 elevatorSetState(ctx, CAR_STATE_MOV_UP, now);
             }
@@ -75,9 +75,9 @@ void elevatorUpdate(elevator_t *ctx, uint32_t now) {
                 break;
             }
 
-            if (ctx->curr_floor == ctx->target_floor) {
+            if (ctx->current_floor == ctx->target_floor) {
                 bspLiftMotorSet(BSP_LIFT_STOP, 0);
-                ctx->req_mask &= ~FLOOR_BIT(ctx->curr_floor);
+                ctx->request_mask &= ~FLOOR_BIT(ctx->current_floor);
                 elevatorSetState(ctx, CAR_STATE_DOOR_OPENING, now);
             }
             break;
@@ -89,9 +89,9 @@ void elevatorUpdate(elevator_t *ctx, uint32_t now) {
                 break;
             }
 
-            if (ctx->curr_floor == ctx->target_floor) {
+            if (ctx->current_floor == ctx->target_floor) {
                 bspLiftMotorSet(BSP_LIFT_STOP, 0);
-                ctx->req_mask &= ~FLOOR_BIT(ctx->curr_floor);
+                ctx->request_mask &= ~FLOOR_BIT(ctx->current_floor);
                 elevatorSetState(ctx, CAR_STATE_DOOR_OPENING, now);
             }
             break;
