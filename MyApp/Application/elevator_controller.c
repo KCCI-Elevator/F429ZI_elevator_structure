@@ -18,13 +18,13 @@
   #if 1
 #define CONTROL_PERIOD_MS   10u //10ms마다 한번씩 현재 위치 확인, 다음동작 계산.
 #define CONTROL_DT_SEC      ((float)CONTROL_PERIOD_MS / 1000.f)//위의 값을 초단위로 환산.
-#define MOTOR_MAX_DUTY      3000u //최대 pwm 설정값
-#define MOTOR_MIN_DUTY      700u // 최소 pwm 설정값 데드존 넘어서는 값 설정.
+#define MOTOR_MAX_DUTY      4500 //최대 pwm 설정값
+#define MOTOR_MIN_DUTY      700 // 최소 pwm 설정값 데드존 넘어서는 값 설정.
 #define SCURVE_TRAVEL_MM    400.0f //이동 목표 거리.(20cm로 설정.)
 #define SCURVE_MAX_VEL_MM_S 150.0f //최대속도
 #define SCURVE_MAX_ACC_MM_S2 100.0f //최대 가속도
 #define SCURVE_JERK_MM_S3   200.0f //가속도 변화율(jerk)
-#define FLOOR_DWELL_MS      1000u //도착 후 대기 시간
+#define FLOOR_DWELL_MS      1000 //도착 후 대기 시간
 
 #endif
 
