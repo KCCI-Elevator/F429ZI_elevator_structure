@@ -5,22 +5,22 @@
 #include "motor.h"
 
 // 1. 50% PWM 구간 게인 (저속)
-#define PI_UP_KP_50    0.120f
-#define PI_UP_KI_50    2.112f
-#define PI_DN_KP_50    0.148f
-#define PI_DN_KI_50    2.163f
+#define PI_UP_KP_50    33.673f
+#define PI_UP_KI_50    652.926f
+#define PI_DN_KP_50    20.473f
+#define PI_DN_KI_50    239.769f
 
 // 2. 75% PWM 구간 게인 (중속)
-#define PI_UP_KP_75    0.048f
-#define PI_UP_KI_75    0.938f
-#define PI_DN_KP_75    0.077f
-#define PI_DN_KI_75    1.638f
+#define PI_UP_KP_75    22.467f
+#define PI_UP_KI_75    557.226f
+#define PI_DN_KP_75    18.4459f
+#define PI_DN_KI_75    375.447f
 
 // 3. 100% PWM 구간 게인 (고속)
-#define PI_UP_KP_100   0.185f
-#define PI_UP_KI_100   1.121f
-#define PI_DN_KP_100   0.017f
-#define PI_DN_KI_100   0.934f
+#define PI_UP_KP_100   23.483f
+#define PI_UP_KI_100   1449.541f
+#define PI_DN_KP_100   21.574f
+#define PI_DN_KI_100   1248.798f
 
 // PI 제어기 구조체
 typedef struct {
