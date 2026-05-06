@@ -178,7 +178,7 @@ void Elevator_Controller_Update() {
     // 정지 조건
     if (myPlanner.state == MP_IDLE &&
         fabs(pos_error) < 1.0f &&
-        fabs(current_vel) < 5.0f) {
+        fabs(current_vel) < 2.0f) {
 
         motorStop();
         sys_state = ELEVATOR_DWELLING;
