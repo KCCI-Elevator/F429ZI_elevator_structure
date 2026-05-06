@@ -32,7 +32,17 @@ message("Build type: " ${CMAKE_BUILD_TYPE})
 enable_language(C ASM)
 
 # Create an executable object type
-add_executable(${CMAKE_PROJECT_NAME})
+add_executable(${CMAKE_PROJECT_NAME}
+        MyApp/Driver/keypad.c
+        MyApp/Driver/keypad.h
+        MyApp/Driver/oled_spi.c
+        MyApp/Driver/oled_spi.h
+        MyApp/Hardware/esp8266.c
+        MyApp/Hardware/esp8266.h
+        MyApp/Hardware/my_uart.c
+        MyApp/Hardware/my_uart.h
+        MyApp/Driver/wifi.c
+        MyApp/Driver/wifi.h)
 
 # Add STM32CubeMX generated sources
 add_subdirectory(cmake/stm32cubemx)
