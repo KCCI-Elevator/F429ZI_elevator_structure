@@ -6,6 +6,7 @@
 void Elevator_Controller_Init();
 void Elevator_Controller_Update();
 
-
+bool Elevator_GoToFloor(uint8_t target_floor);
+bool Elevator_IsBusy(void);
 
 #endif

@@ -40,7 +40,28 @@ void apInit(void) {
 }
 
 void apMain(void) {
-        // Elevator_Controller_Update();
-        osDelay(10);
+    if (!Elevator_IsBusy()) { 
         
+        static int sequence = 0; 
+        
+        osDelay(2000); 
+
+        if (sequence == 0) {
+            Elevator_GoToFloor(3);
+            sequence++;
+        } 
+        else if (sequence == 1) {
+            Elevator_GoToFloor(1);
+            sequence++;
+        }
+        else if (sequence == 2) {
+            Elevator_GoToFloor(2); 
+            sequence++;            // 🎯 다음 시퀀스로 넘김
+        }
+        else if (sequence == 3) {
+            Elevator_GoToFloor(1);
+            sequence = 0;          // 🎯 1층 복귀 후 처음(0)으로 초기화
+        }
+    }
+    osDelay(10);
 }
