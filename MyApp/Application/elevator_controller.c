@@ -2,6 +2,7 @@
 #include "Scurve.h"
 #include "motor.h"
 #include "bsp.h"
+#include "tim.h"
 #include "motion_unit_conv.h"
 #include "pi_controller.h"
 #include <math.h>
@@ -187,4 +188,8 @@ void Elevator_Controller_Update() {
     else {
         motorSetSpeed(cmd_dir, (uint32_t)final_pwm);
     }
+}
+
+void Elevator_EmergencyStop() {
+    __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_3, 0);
 }
