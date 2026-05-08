@@ -1,9 +1,5 @@
-위치:
-    MyApp/Hardware
-
 /* 역할 */
 motor.c/h        → DC 모터 방향, 속도, 정지
 button.c/h       → 버튼 디바운싱, 눌림 이벤트
 floor_sensor.c/h → 현재 층 감지
 door_sensor.c/h  → 문 열림/닫힘 리미트 감지
-esp8266.c/h      → uart 채널을 사용하는 AT 명령 드라이버

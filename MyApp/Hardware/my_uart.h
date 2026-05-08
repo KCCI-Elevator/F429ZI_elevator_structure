@@ -1,14 +1,11 @@
+//
+// Created by hiimseoll on 26. 5. 6..
+//
+
 #ifndef __MAP_HW__MY_UART_H__
 #define __MAP_HW__MY_UART_H__
 
 #include "def.h"
-
-/*
- * UART 채널 정의
- *
- * UART_CH_DEBUG   : USART3, ST-LINK VCP, PC 로그 출력용
- * UART_CH_ESP8266 : USART6, ESP-01 AT 명령 통신용
- */
 
 #define UART_CH_DEBUG   0
 #define UART_CH_ESP8266 1

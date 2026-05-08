@@ -1,7 +1,14 @@
 #include "hw.h"
 
+#include "my_pwm.h"
+#include "my_uart.h"
+#include "my_encoder.h"
+
 void hwInit(void){
-    // User Driver Init
+    // User Hardware Init
+    myPwmInit();
+    myEncoderInit();
+    uartInit();
 }
 
 uint32_t hwMillis(void){

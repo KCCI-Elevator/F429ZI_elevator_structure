@@ -1,84 +1,188 @@
 #include "ap.h"
+
 #include "bsp.h"
 #include "elevator.h"
-#include "wifi.h"
-
-#include <stdint.h>
+#include "elevator_controller.h"
 
 #include "cmsis_os2.h"
 
-// inner
-static volatile bool app_ready = false;
+static elevator_t s_elevator;
+static volatile bool s_app_ready = false;
 
-static elevator_t elevator;
-static wifi_t wifi;
+static uint8_t s_last_sent_floor = 0xFF;
+static uint8_t s_last_sent_dir = 0xFF;
+static uint8_t s_last_sent_state = 0xFF;
+static uint32_t s_last_heartbeat_tick = 0;
 
-// task Init
-void StartDefaultTask(void *argument) {
-    apInit();
-    app_ready = true;
+static bool apShouldSendStatus(uint32_t now, const bsp_elevator_input_t *input)
+{
+    bool is_changed;
+    bool is_heartbeat;
 
-    apMain();
+    if (input == NULL) {
+        return false;
+    }
+
+    is_changed = (input->curr_floor != s_last_sent_floor) ||
+                 ((uint8_t)input->current_dir != s_last_sent_dir) ||
+                 ((uint8_t)input->special_state != s_last_sent_state);
+
+    is_heartbeat = (now - s_last_heartbeat_tick >= 5000U);
+
+    return is_changed || is_heartbeat;
 }
 
-void motorTask(void *argument) {
+static void apMarkStatusSent(uint32_t now, const bsp_elevator_input_t *input)
+{
+    if (input == NULL) {
+        return;
+    }
+
+    s_last_sent_floor = input->curr_floor;
+    s_last_sent_dir = (uint8_t)input->current_dir;
+    s_last_sent_state = (uint8_t)input->special_state;
+    s_last_heartbeat_tick = now;
+}
+
+void StartElevatorTask(void *argument)
+{
+    uint32_t prev_time;
+    uint32_t oled_prev_time;
+
+    (void)argument;
+
+    bspInit();
+    bspUiInit();
+    (void)bspCanInit();
+    Elevator_Controller_Init();
+    elevatorInit(&s_elevator);
+
+    bspDelay(100);
+    bspCanSendTest();
+    bspDelay(100);
+    (void)bspCanSendStatus();
+
+    prev_time = bspMillis();
+    oled_prev_time = prev_time;
+    s_app_ready = true;
+
     while (1) {
-        osDelay(1);
+        uint32_t now = bspMillis();
+
+        if (now - prev_time >= 10U) {
+            bsp_elevator_input_t input;
+
+            prev_time = now;
+
+            bspUpdate();
+            elevatorUpdate(&s_elevator, now);
+            bspElevatorReadInput(&input);
+
+            if (apShouldSendStatus(now, &input)) {
+                if (input.curr_floor != 0U || input.special_state == BSP_STATE_MOVING) {
+                    (void)bspCanSendStatus();
+                    apMarkStatusSent(now, &input);
+                }
+            }
+        }
+
+        if (now - oled_prev_time >= 50U) {
+            oled_prev_time = now;
+            bspUiUpdate();
+        }
+
+        bspDelay(1);
     }
 }
 
-void wifiTask(void *argument) {
-    while (app_ready == false){
-        osDelay(1);
-    }
-    
+void StartDefaultTask(void *argument)
+{
+    (void)argument;
+
     while (1) {
-        wifiProcess(&wifi);
-        osDelay(1);
+        osDelay(1000);
     }
 }
 
-// function
-void apInit(void) {
-    if (bspInit() == false) {
+void motorTask(void *argument)
+{
+    uint32_t tick_count;
+
+    (void)argument;
+
+    while (s_app_ready == false) {
+        osDelay(1);
+    }
+
+    tick_count = osKernelGetTickCount();
+
+    while (1) {
+        Elevator_Controller_Update();
+        tick_count += 10U;
+        osDelayUntil(tick_count);
+    }
+}
+
+void StartCanRXTask(void *argument)
+{
+    (void)argument;
+
+    while (s_app_ready == false) {
+        osDelay(1);
+    }
+
+    while (1) {
+        (void)bspCanProcessRx();
+        osDelay(10);
+    }
+}
+
+void StartKeypadTask(void *argument)
+{
+    char last_processed_key = 0;
+
+    (void)argument;
+
+    while (s_app_ready == false) {
+        osDelay(1);
+    }
+
+    while (1) {
+        char key = bspKeypadGetKey();
+
+        if (key != 0 && key != last_processed_key) {
+            if (key >= '1' && key <= '3') {
+                bspToggleCarCall((uint8_t)(key - '0'));
+            }
+            else if (key == 'A') {
+                /* Door open request hook can be added here. */
+            }
+            else if (key == 'B') {
+                /* Door close request hook can be added here. */
+            }
+        }
+
+        last_processed_key = key;
+        osDelay(20);
+    }
+}
+
+void StartWifiTask(void *argument)
+{
+    (void)argument;
+
+    while (s_app_ready == false) {
+        osDelay(1);
+    }
+
+    if (bspWifiInit() == false) {
         while (1) {
             osDelay(1000);
         }
     }
 
-    wifiInit(&wifi, bspGetEsp8266());
-    elevatorInit(&elevator);
-}   // 에러 led 또는 로그 출력으로 바꿔도 됨
-
-void apMain(void) {
-    uint32_t prev_time = bspMillis();
-    uint32_t prev_wifi_tx_time = bspMillis();
-
     while (1) {
-        // action
-        uint32_t now = bspMillis();
-
-        // elevator action
-        if (now - prev_time >= 10){
-            prev_time = now;
-
-            bspUpdate();
-            elevatorUpdate(&elevator, now);
-        }
-
-        // wifi action 500ms마다
-        if (now - prev_wifi_tx_time >= 500) {
-            prev_wifi_tx_time = now;
-
-            if (wifiIsConnected(&wifi)) {
-                wifiSendElevatorStatus(&wifi,
-                                       elevator.current_floor,
-                                       elevator.target_floor,
-                                       0,
-                                       elevator.state);
-            }
-        } // blocking 구조라 wifiTask()로 이동시켜 처리하는 구조로 바꿔야함
-
-        bspDelay(1);
+        bspWifiProcess();
+        osDelay(10);
     }
 }

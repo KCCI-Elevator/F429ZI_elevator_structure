@@ -1,213 +1,522 @@
 #include "bsp.h"
 
-// hardware
+#include <string.h>
+
 #include "hw.h"
 #include "my_gpio.h"
-#include "my_uart.h"
-//#include "motor.h"
+#include "my_can.h"
 
-/* elevator unit */
-static bsp_elevator_input_t elevator_input;
+#include "motor.h"
+#include "keypad.h"
+#include "oled_spi.h"
+#include "wifi.h"
 
-static bool bspReadInputPin(uint8_t port_idx, uint8_t pin_num) {
-    int8_t pin_state;
+#ifdef MCU_F429
 
-    pin_state = gpioExtRead(port_idx, pin_num);
+static bsp_elevator_input_t s_elevator_input;
+
+/* Port index: 0=A, 1=B, ... , 10=K */
+#define BSP_BTN_FLOOR_1_PORT        0U
+#define BSP_BTN_FLOOR_1_PIN         0U
+#define BSP_BTN_FLOOR_2_PORT        0U
+#define BSP_BTN_FLOOR_2_PIN         1U
+#define BSP_BTN_FLOOR_3_PORT        0U
+#define BSP_BTN_FLOOR_3_PIN         2U
+
+#define BSP_SENSOR_FLOOR_1_PORT     1U
+#define BSP_SENSOR_FLOOR_1_PIN      0U
+#define BSP_SENSOR_FLOOR_2_PORT     1U
+#define BSP_SENSOR_FLOOR_2_PIN      1U
+#define BSP_SENSOR_FLOOR_3_PORT     1U
+#define BSP_SENSOR_FLOOR_3_PIN      2U
+
+#define BSP_LIMIT_TOP_PORT          2U
+#define BSP_LIMIT_TOP_PIN           0U
+#define BSP_LIMIT_BOTTOM_PORT       2U
+#define BSP_LIMIT_BOTTOM_PIN        1U
+#define BSP_DOOR_OPEN_LIMIT_PORT    2U
+#define BSP_DOOR_OPEN_LIMIT_PIN     2U
+#define BSP_DOOR_CLOSE_LIMIT_PORT   2U
+#define BSP_DOOR_CLOSE_LIMIT_PIN    3U
+#define BSP_DOOR_OBSTACLE_PORT      2U
+#define BSP_DOOR_OBSTACLE_PIN       4U
+#define BSP_EMERGENCY_STOP_PORT     2U
+#define BSP_EMERGENCY_STOP_PIN      5U
+
+#define BSP_CAN_LED_PORT            1U
+#define BSP_CAN_LED_PIN             7U
+
+#define BSP_INPUT_ACTIVE_STATE      HIGH
+#define BSP_INPUT_PULL              GPIO_NOPULL
+
+#define BSP_WIFI_TX_PERIOD_MS       2000U
+#define BSP_WIFI_RX_PERIOD_MS       1500U
+
+static uint32_t s_wifi_tx_prev_time = 0;
+static uint32_t s_wifi_rx_prev_time = 0;
+
+static bool bspIsValidFloor(uint8_t floor)
+{
+    return floor >= CAN_FLOOR_1 && floor <= CAN_FLOOR_3;
+}
+
+static bool bspReadInputPin(uint8_t port_idx, uint8_t pin_num)
+{
+    int8_t pin_state = gpioExtRead(port_idx, pin_num);
 
     if (pin_state < 0) {
         return false;
     }
 
-    if (BSP_INPUT_ACTIVE_STATE == HIGH) {
-        return pin_state == HIGH;
-    }
-
-    return pin_state == LOW;
+    return (BSP_INPUT_ACTIVE_STATE == HIGH) ? (pin_state == HIGH) : (pin_state == LOW);
 }
 
-static void bspWriteOutputPin(uint8_t port_idx, uint8_t pin_num, bool state) {
-    gpioExtWrite(port_idx, pin_num, state ? HIGH : LOW);
+static void bspWriteOutputPin(uint8_t port_idx, uint8_t pin_num, bool state)
+{
+    (void)gpioExtWrite(port_idx, pin_num, state ? HIGH : LOW);
 }
 
-static void bspMotorStop(uint8_t in1_port, uint8_t in1_pin, uint8_t in2_port, uint8_t in2_pin) {
-    bspWriteOutputPin(in1_port, in1_pin, false);
-    bspWriteOutputPin(in2_port, in2_pin, false);
+static void bspInitInput(uint8_t port_idx, uint8_t pin_num)
+{
+    (void)gpioExtInitPull(port_idx, pin_num, GPIO_MODE_INPUT, BSP_INPUT_PULL);
 }
 
-static void bspMotorForward(uint8_t in1_port, uint8_t in1_pin, uint8_t in2_port, uint8_t in2_pin) {
-    bspWriteOutputPin(in1_port, in1_pin, true);
-    bspWriteOutputPin(in2_port, in2_pin, false);
+static void bspInitOutput(uint8_t port_idx, uint8_t pin_num)
+{
+    (void)gpioExtInitPull(port_idx, pin_num, GPIO_MODE_OUTPUT_PP, GPIO_NOPULL);
+    bspWriteOutputPin(port_idx, pin_num, false);
 }
 
-static void bspMotorReverse(uint8_t in1_port, uint8_t in1_pin, uint8_t in2_port, uint8_t in2_pin) {
-    bspWriteOutputPin(in1_port, in1_pin, false);
-    bspWriteOutputPin(in2_port, in2_pin, true);
+static void bspInitIo(void)
+{
+    bspInitInput(BSP_BTN_FLOOR_1_PORT, BSP_BTN_FLOOR_1_PIN);
+    bspInitInput(BSP_BTN_FLOOR_2_PORT, BSP_BTN_FLOOR_2_PIN);
+    bspInitInput(BSP_BTN_FLOOR_3_PORT, BSP_BTN_FLOOR_3_PIN);
+
+    bspInitInput(BSP_SENSOR_FLOOR_1_PORT, BSP_SENSOR_FLOOR_1_PIN);
+    bspInitInput(BSP_SENSOR_FLOOR_2_PORT, BSP_SENSOR_FLOOR_2_PIN);
+    bspInitInput(BSP_SENSOR_FLOOR_3_PORT, BSP_SENSOR_FLOOR_3_PIN);
+
+    bspInitInput(BSP_LIMIT_TOP_PORT, BSP_LIMIT_TOP_PIN);
+    bspInitInput(BSP_LIMIT_BOTTOM_PORT, BSP_LIMIT_BOTTOM_PIN);
+    bspInitInput(BSP_DOOR_OPEN_LIMIT_PORT, BSP_DOOR_OPEN_LIMIT_PIN);
+    bspInitInput(BSP_DOOR_CLOSE_LIMIT_PORT, BSP_DOOR_CLOSE_LIMIT_PIN);
+    bspInitInput(BSP_DOOR_OBSTACLE_PORT, BSP_DOOR_OBSTACLE_PIN);
+    bspInitInput(BSP_EMERGENCY_STOP_PORT, BSP_EMERGENCY_STOP_PIN);
+
+    bspInitOutput(BSP_CAN_LED_PORT, BSP_CAN_LED_PIN);
 }
 
-static void bspUpdateFloorSensor(void) {
+static void bspUpdateFloorSensor(void)
+{
     uint8_t detected_count = 0;
     uint8_t detected_floor = 0;
 
-    if (bspReadInputPin(BSP_SENSOR_FLOOR_1_PORT, BSP_SENSOR_FLOOR_1_PIN) == true) {
+    if (bspReadInputPin(BSP_SENSOR_FLOOR_1_PORT, BSP_SENSOR_FLOOR_1_PIN)) {
         detected_count++;
         detected_floor = 1;
     }
 
-    if (bspReadInputPin(BSP_SENSOR_FLOOR_2_PORT, BSP_SENSOR_FLOOR_2_PIN) == true) {
+    if (bspReadInputPin(BSP_SENSOR_FLOOR_2_PORT, BSP_SENSOR_FLOOR_2_PIN)) {
         detected_count++;
         detected_floor = 2;
     }
 
-    if (bspReadInputPin(BSP_SENSOR_FLOOR_3_PORT, BSP_SENSOR_FLOOR_3_PIN) == true) {
+    if (bspReadInputPin(BSP_SENSOR_FLOOR_3_PORT, BSP_SENSOR_FLOOR_3_PIN)) {
         detected_count++;
         detected_floor = 3;
     }
 
-    if (detected_count == 1) {
-        elevator_input.floor_valid = true;
-        elevator_input.current_floor = detected_floor;
+    if (detected_count == 1U) {
+        s_elevator_input.floor_valid = true;
+        s_elevator_input.curr_floor = detected_floor;
     }
     else {
-        elevator_input.floor_valid = false;
+        s_elevator_input.floor_valid = false;
     }
 }
 
-/* wifi unit */
-static esp8266_t esp8266;
+void bspInit(void)
+{
+    memset(&s_elevator_input, 0, sizeof(s_elevator_input));
 
-// function
-bool bspInit(void) {
-    memset(&elevator_input, 0, sizeof(elevator_input));
+    s_elevator_input.curr_floor = 1;
+    s_elevator_input.current_dir = BSP_LIFT_STOP;
+    s_elevator_input.special_state = BSP_STATE_NORMAL;
+    s_elevator_input.floor_valid = true;
 
     hwInit();
-    if (uartInit() == false) return false;
-
-    esp8266_Init(&esp8266, UART_CH_ESP8266);
-
-    return true;
+    
+    bspInitIo();
+    keypadInit();
+    motorInit();
 }
 
-void bspUpdate(void) {
-    /*
-     * request_mask는 매 주기 새로 읽습니다.
-     * elevator.c 내부에서 ctx->request_mask |= input.request_mask 형태로 누적하면 됩니다.
-     */
-    elevator_input.request_mask = 0;
+void bspUpdate(void)
+{
+    s_elevator_input.req_mask = 0;
 
-    if (bspReadInputPin(BSP_BTN_FLOOR_1_PORT, BSP_BTN_FLOOR_1_PIN) == true) {
-        elevator_input.request_mask |= (1U << 0);
+    if (bspReadInputPin(BSP_BTN_FLOOR_1_PORT, BSP_BTN_FLOOR_1_PIN)) {
+        s_elevator_input.req_mask |= (1U << 0);
+        s_elevator_input.call_car[1] = true;
     }
 
-    if (bspReadInputPin(BSP_BTN_FLOOR_2_PORT, BSP_BTN_FLOOR_2_PIN) == true) {
-        elevator_input.request_mask |= (1U << 1);
+    if (bspReadInputPin(BSP_BTN_FLOOR_2_PORT, BSP_BTN_FLOOR_2_PIN)) {
+        s_elevator_input.req_mask |= (1U << 1);
+        s_elevator_input.call_car[2] = true;
     }
 
-    if (bspReadInputPin(BSP_BTN_FLOOR_3_PORT, BSP_BTN_FLOOR_3_PIN) == true) {
-        elevator_input.request_mask |= (1U << 2);
+    if (bspReadInputPin(BSP_BTN_FLOOR_3_PORT, BSP_BTN_FLOOR_3_PIN)) {
+        s_elevator_input.req_mask |= (1U << 2);
+        s_elevator_input.call_car[3] = true;
     }
 
     bspUpdateFloorSensor();
 
-    elevator_input.top_limit =
-        bspReadInputPin(BSP_LIMIT_TOP_PORT, BSP_LIMIT_TOP_PIN);
-
-    elevator_input.bottom_limit =
-        bspReadInputPin(BSP_LIMIT_BOTTOM_PORT, BSP_LIMIT_BOTTOM_PIN);
-
-    elevator_input.door_open_limit =
-        bspReadInputPin(BSP_DOOR_OPEN_LIMIT_PORT, BSP_DOOR_OPEN_LIMIT_PIN);
-
-    elevator_input.door_close_limit =
-        bspReadInputPin(BSP_DOOR_CLOSE_LIMIT_PORT, BSP_DOOR_CLOSE_LIMIT_PIN);
-
-    elevator_input.obstacle_detected =
-        bspReadInputPin(BSP_DOOR_OBSTACLE_PORT, BSP_DOOR_OBSTACLE_PIN);
-
-    elevator_input.emergency_stop =
-        bspReadInputPin(BSP_EMERGENCY_STOP_PORT, BSP_EMERGENCY_STOP_PIN);
-
-    /*
-     * 아직 ADC 전류 감지 드라이버가 없으므로 false로 둡니다.
-     * 나중에 my_adc.c/h 또는 current_sensor.c/h를 만들면 여기서 갱신하면 됩니다.
-     */
-    elevator_input.motor_over_current = false;
+    s_elevator_input.top_limit = bspReadInputPin(BSP_LIMIT_TOP_PORT, BSP_LIMIT_TOP_PIN);
+    s_elevator_input.bottom_limit = bspReadInputPin(BSP_LIMIT_BOTTOM_PORT, BSP_LIMIT_BOTTOM_PIN);
+    s_elevator_input.door_open_limit = bspReadInputPin(BSP_DOOR_OPEN_LIMIT_PORT, BSP_DOOR_OPEN_LIMIT_PIN);
+    s_elevator_input.door_close_limit = bspReadInputPin(BSP_DOOR_CLOSE_LIMIT_PORT, BSP_DOOR_CLOSE_LIMIT_PIN);
+    s_elevator_input.obstacle_detected = bspReadInputPin(BSP_DOOR_OBSTACLE_PORT, BSP_DOOR_OBSTACLE_PIN);
+    s_elevator_input.emergency_stop = bspReadInputPin(BSP_EMERGENCY_STOP_PORT, BSP_EMERGENCY_STOP_PIN);
+    s_elevator_input.motor_over_current = false;
 }
 
-uint32_t bspMillis(void) {
+uint32_t bspMillis(void)
+{
     return hwMillis();
 }
-void bspDelay(uint32_t delay_ms) {
+
+void bspDelay(uint32_t delay_ms)
+{
     hwDelay(delay_ms);
 }
 
-void bspElevatorReadInput(bsp_elevator_input_t *input) {
+void bspElevatorReadInput(bsp_elevator_input_t *input)
+{
     if (input == NULL) {
         return;
     }
 
-    *input = elevator_input;
+    __disable_irq();
+    memcpy(input, &s_elevator_input, sizeof(*input));
+    __enable_irq();
 }
 
-void bspLiftMotorSet(bsp_lift_dir_t dir, uint16_t pwm) {
-    /*
-     * 현재 버전에서는 PWM 제어가 없습니다.
-     * pwm 값은 함수 호환성을 위해 유지합니다.
-     */
-    if (pwm == 0 || dir == BSP_LIFT_STOP) {
-        bspMotorStop(BSP_LIFT_MOTOR_IN1_PORT, BSP_LIFT_MOTOR_IN1_PIN,
-                     BSP_LIFT_MOTOR_IN2_PORT, BSP_LIFT_MOTOR_IN2_PIN);
+void bspSetCurrentFloor(uint8_t floor)
+{
+    if (bspIsValidFloor(floor)) {
+        s_elevator_input.curr_floor = floor;
+        s_elevator_input.floor_valid = true;
+    }
+}
+
+void bspSetFloorValid(bool valid)
+{
+    s_elevator_input.floor_valid = valid;
+}
+
+void bspSetCurrentDir(bsp_lift_dir_t dir)
+{
+    s_elevator_input.current_dir = dir;
+}
+
+void bspSetSpecialState(bsp_special_state_t state)
+{
+    s_elevator_input.special_state = state;
+}
+
+void bspSetArrivedAck(bool ack)
+{
+    s_elevator_input.arrived_ack = ack;
+}
+
+void bspSetCarCall(uint8_t floor, bool state)
+{
+    if (bspIsValidFloor(floor)) {
+        s_elevator_input.call_car[floor] = state;
+    }
+}
+
+void bspToggleCarCall(uint8_t floor)
+{
+    if (bspIsValidFloor(floor)) {
+        s_elevator_input.call_car[floor] = !s_elevator_input.call_car[floor];
+    }
+}
+
+void bspSetHallCallUp(uint8_t floor, bool state)
+{
+    if (bspIsValidFloor(floor)) {
+        s_elevator_input.call_up[floor] = state;
+    }
+}
+
+void bspSetHallCallDown(uint8_t floor, bool state)
+{
+    if (bspIsValidFloor(floor)) {
+        s_elevator_input.call_down[floor] = state;
+    }
+}
+
+void bspSetWifiRequest(uint8_t floor, bool state)
+{
+    if (bspIsValidFloor(floor)) {
+        s_elevator_input.req_wifi[floor - 1U] = state;
+    }
+}
+
+void bspClearServicedRequests(uint8_t floor, bsp_lift_dir_t service_dir)
+{
+    if (bspIsValidFloor(floor) == false) {
         return;
     }
 
-    switch (dir) {
-        case BSP_LIFT_UP:
-            bspMotorForward(BSP_LIFT_MOTOR_IN1_PORT, BSP_LIFT_MOTOR_IN1_PIN,
-                            BSP_LIFT_MOTOR_IN2_PORT, BSP_LIFT_MOTOR_IN2_PIN);
-            break;
+    s_elevator_input.call_car[floor] = false;
+    s_elevator_input.req_wifi[floor - 1U] = false;
 
-        case BSP_LIFT_DOWN:
-            bspMotorReverse(BSP_LIFT_MOTOR_IN1_PORT, BSP_LIFT_MOTOR_IN1_PIN,
-                            BSP_LIFT_MOTOR_IN2_PORT, BSP_LIFT_MOTOR_IN2_PIN);
-            break;
-
-        case BSP_LIFT_STOP:
-        default:
-            bspMotorStop(BSP_LIFT_MOTOR_IN1_PORT, BSP_LIFT_MOTOR_IN1_PIN,
-                         BSP_LIFT_MOTOR_IN2_PORT, BSP_LIFT_MOTOR_IN2_PIN);
-            break;
+    if (service_dir == BSP_LIFT_UP) {
+        s_elevator_input.call_up[floor] = false;
+    }
+    else if (service_dir == BSP_LIFT_DOWN) {
+        s_elevator_input.call_down[floor] = false;
     }
 }
 
-void bspDoorMotorSet(bsp_door_dir_t dir, uint16_t pwm) {
-    /*
-     * 현재 버전에서는 PWM 제어가 없습니다.
-     * pwm 값은 함수 호환성을 위해 유지합니다.
-     */
-    if (pwm == 0 || dir == BSP_DOOR_STOP) {
-        bspMotorStop(BSP_DOOR_MOTOR_IN1_PORT, BSP_DOOR_MOTOR_IN1_PIN,
-                     BSP_DOOR_MOTOR_IN2_PORT, BSP_DOOR_MOTOR_IN2_PIN);
+void bspLiftMotorSet(bsp_lift_dir_t dir, uint16_t pwm)
+{
+    MotorDir_t motor_dir = MOTOR_DIR_STOP;
+
+    if (dir == BSP_LIFT_UP) {
+        motor_dir = MOTOR_DIR_CW;
+    }
+    else if (dir == BSP_LIFT_DOWN) {
+        motor_dir = MOTOR_DIR_CCW;
+    }
+
+    if (pwm == 0U || motor_dir == MOTOR_DIR_STOP) {
+        motorStop();
+    }
+    else {
+        motorSetSpeed(motor_dir, pwm);
+    }
+}
+
+void bspDoorMotorSet(bsp_door_dir_t dir, uint16_t pwm)
+{
+    (void)dir;
+    (void)pwm;
+    /* F429 does not drive the hall door motor directly. Door commands are sent over CAN. */
+}
+
+bool bspCanInit(void)
+{
+    return canInit();
+}
+
+bool bspCanSendStatus(void)
+{
+    const uint8_t data[3] = {
+        s_elevator_input.curr_floor,
+        (uint8_t)s_elevator_input.current_dir,
+        (uint8_t)s_elevator_input.special_state
+    };
+
+    return canTransmit(CAN_ID_STATUS, data, 3);
+}
+
+bool bspCanSendArrivedCheck(uint8_t floor)
+{
+    const uint8_t data[1] = {floor};
+    return canTransmit(CAN_ID_ARRIVED_CHECK, data, 1);
+}
+
+bool bspCanSendDoorCmd(uint8_t floor, uint8_t cmd, uint8_t dir)
+{
+    const uint8_t data[3] = {floor, cmd, dir};
+    return canTransmit(CAN_ID_DOOR_CMD, data, 3);
+}
+
+void bspCanSendTest(void)
+{
+    canTestTx();
+}
+
+static void bspCanParseFrame(const can_frame_t *frame)
+{
+    uint8_t floor;
+
+    if (frame == NULL || frame->len == 0U) {
         return;
     }
 
-    switch (dir) {
-        case BSP_DOOR_OPEN:
-            bspMotorForward(BSP_DOOR_MOTOR_IN1_PORT, BSP_DOOR_MOTOR_IN1_PIN,
-                            BSP_DOOR_MOTOR_IN2_PORT, BSP_DOOR_MOTOR_IN2_PIN);
-            break;
+    floor = frame->data[0];
 
-        case BSP_DOOR_CLOSE:
-            bspMotorReverse(BSP_DOOR_MOTOR_IN1_PORT, BSP_DOOR_MOTOR_IN1_PIN,
-                            BSP_DOOR_MOTOR_IN2_PORT, BSP_DOOR_MOTOR_IN2_PIN);
-            break;
+    if (bspIsValidFloor(floor) == false) {
+        return;
+    }
 
-        case BSP_DOOR_STOP:
-        default:
-            bspMotorStop(BSP_DOOR_MOTOR_IN1_PORT, BSP_DOOR_MOTOR_IN1_PIN,
-                         BSP_DOOR_MOTOR_IN2_PORT, BSP_DOOR_MOTOR_IN2_PIN);
-            break;
+    switch (frame->id) {
+    case CAN_ID_CALL_REQ:
+        if (frame->len >= 2U) {
+            if (frame->data[1] == CAN_CALL_UP) {
+                bspSetHallCallUp(floor, true);
+            }
+            else if (frame->data[1] == CAN_CALL_DOWN) {
+                bspSetHallCallDown(floor, true);
+            }
+        }
+        break;
+
+    case CAN_ID_CALL_CANCEL:
+        if (frame->len >= 2U) {
+            if (frame->data[1] == CAN_CALL_UP) {
+                bspSetHallCallUp(floor, false);
+            }
+            else if (frame->data[1] == CAN_CALL_DOWN) {
+                bspSetHallCallDown(floor, false);
+            }
+        }
+        break;
+
+    case CAN_ID_ARRIVED_ACK:
+        if (floor == s_elevator_input.curr_floor) {
+            bspSetArrivedAck(true);
+        }
+        break;
+
+    default:
+        break;
     }
 }
 
-esp8266_t *bspGetEsp8266(void){
-    return &esp8266;
+bool bspCanProcessRx(void)
+{
+    can_frame_t frame;
+
+    if (canReceive(&frame) == false) {
+        return false;
+    }
+
+    bspWriteOutputPin(BSP_CAN_LED_PORT, BSP_CAN_LED_PIN, true);
+    bspDelay(30);
+    bspWriteOutputPin(BSP_CAN_LED_PORT, BSP_CAN_LED_PIN, false);
+
+    bspCanParseFrame(&frame);
+
+    return true;
 }
+
+void bspUiInit(void)
+{
+    oled_init();
+}
+
+void bspUiUpdate(void)
+{
+    f429_oled_ui_update(s_elevator_input.curr_floor,
+                        (uint8_t)s_elevator_input.current_dir,
+                        (uint8_t)s_elevator_input.special_state,
+                        s_elevator_input.call_car);
+}
+
+char bspKeypadGetKey(void)
+{
+    return keypadGetKey();
+}
+
+bool bspWifiInit(void)
+{
+    return wifiDefaultInit();
+}
+
+void bspWifiProcess(void)
+{
+    wifi_t *wifi = wifiGetDefaultContext();
+    uint32_t now;
+
+    if (wifi == NULL) {
+        return;
+    }
+
+    wifiProcess(wifi);
+
+    if (wifiIsConnected(wifi) == 0U) {
+        return;
+    }
+
+    now = bspMillis();
+
+    if ((now - s_wifi_tx_prev_time) >= BSP_WIFI_TX_PERIOD_MS) {
+        s_wifi_tx_prev_time = now;
+        wifiSendElevatorStatus(wifi, s_elevator_input.curr_floor);
+    }
+
+    if ((now - s_wifi_rx_prev_time) >= BSP_WIFI_RX_PERIOD_MS) {
+        int v1 = -1;
+        int v2 = -1;
+        int v3 = -1;
+
+        s_wifi_rx_prev_time = now;
+
+        if (wifiReceiveCommands(wifi, &v1, &v2, &v3) == 0) {
+            if (v1 == 0 || v1 == 1) {
+                bspSetWifiRequest(1, v1 == 1);
+                if (v1 == 1) {
+                    wifiClearCommand(wifi, 1);
+                }
+            }
+
+            if (v2 == 0 || v2 == 1) {
+                bspSetWifiRequest(2, v2 == 1);
+                if (v2 == 1) {
+                    wifiClearCommand(wifi, 2);
+                }
+            }
+
+            if (v3 == 0 || v3 == 1) {
+                bspSetWifiRequest(3, v3 == 1);
+                if (v3 == 1) {
+                    wifiClearCommand(wifi, 3);
+                }
+            }
+        }
+    }
+}
+
+#endif // MCU_F429
+
+#ifdef MCU_BLUEPILL
+/* BluePill-specific BSP code can stay here. This project zip is primarily F429-oriented. */
+void bspInit(void) {}
+void bspUpdate(void) {}
+uint32_t bspMillis(void) { return hwMillis(); }
+void bspDelay(uint32_t delay_ms) { hwDelay(delay_ms); }
+void bspElevatorReadInput(bsp_elevator_input_t *input) { (void)input; }
+void bspSetCurrentFloor(uint8_t floor) { (void)floor; }
+void bspSetFloorValid(bool valid) { (void)valid; }
+void bspSetCurrentDir(bsp_lift_dir_t dir) { (void)dir; }
+void bspSetSpecialState(bsp_special_state_t state) { (void)state; }
+void bspSetArrivedAck(bool ack) { (void)ack; }
+void bspSetCarCall(uint8_t floor, bool state) { (void)floor; (void)state; }
+void bspToggleCarCall(uint8_t floor) { (void)floor; }
+void bspSetHallCallUp(uint8_t floor, bool state) { (void)floor; (void)state; }
+void bspSetHallCallDown(uint8_t floor, bool state) { (void)floor; (void)state; }
+void bspSetWifiRequest(uint8_t floor, bool state) { (void)floor; (void)state; }
+void bspClearServicedRequests(uint8_t floor, bsp_lift_dir_t service_dir) { (void)floor; (void)service_dir; }
+void bspLiftMotorSet(bsp_lift_dir_t dir, uint16_t pwm) { (void)dir; (void)pwm; }
+void bspDoorMotorSet(bsp_door_dir_t dir, uint16_t pwm) { (void)dir; (void)pwm; }
+bool bspCanInit(void) { return false; }
+bool bspCanProcessRx(void) { return false; }
+bool bspCanSendStatus(void) { return false; }
+bool bspCanSendArrivedCheck(uint8_t floor) { (void)floor; return false; }
+bool bspCanSendDoorCmd(uint8_t floor, uint8_t cmd, uint8_t dir) { (void)floor; (void)cmd; (void)dir; return false; }
+void bspCanSendTest(void) {}
+void bspUiInit(void) {}
+void bspUiUpdate(void) {}
+char bspKeypadGetKey(void) { return 0; }
+bool bspWifiInit(void) { return false; }
+void bspWifiProcess(void) {}
+uint8_t bspGetLocalFloor(void) { return CAN_FLOOR_UNKNOWN; }
+bool bspReadHallSensor(uint8_t floor) { (void)floor; return false; }
+#endif // MCU_BLUEPILL

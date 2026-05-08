@@ -4,8 +4,16 @@
 #include "def.h"
 #include "hw_def.h"
 
-// port num : 0=A, 1=B, ... , 10=K  // K[7:0]
+/* Port index: 0=A, 1=B, ... , 10=K. */
+GPIO_TypeDef *gpioGetPortPtr(uint8_t port_idx);
+
+bool gpioExtInit(uint8_t port_idx, uint8_t pin_num, uint32_t mode);
+bool gpioExtInitPull(uint8_t port_idx, uint8_t pin_num, uint32_t mode, uint32_t pull);
 bool gpioExtWrite(uint8_t port_idx, uint8_t pin_num, uint8_t state);
 int8_t gpioExtRead(uint8_t port_idx, uint8_t pin_num);
 
-#endif //__MAP_HW__MY_GPIO_H__
+bool gpioPinInit(GPIO_TypeDef *port, uint16_t pin, uint32_t mode, uint32_t pull);
+bool gpioPinWrite(GPIO_TypeDef *port, uint16_t pin, bool state);
+int8_t gpioPinRead(GPIO_TypeDef *port, uint16_t pin);
+
+#endif // __MAP_HW__MY_GPIO_H__

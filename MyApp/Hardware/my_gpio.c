@@ -1,87 +1,137 @@
 #include "my_gpio.h"
 
-// inner
-static GPIO_TypeDef *getPortPtr(uint8_t port_idx) {
-    // nucleo-F429ZI 보드에 맞는 GPIO핀 설정: A-K // A-J[15:0], K[7:0]
+GPIO_TypeDef *gpioGetPortPtr(uint8_t port_idx)
+{
     switch (port_idx) {
-        case 0:
-            __HAL_RCC_GPIOA_CLK_ENABLE();
-            return GPIOA; // 15:0
-        case 1:
-            __HAL_RCC_GPIOB_CLK_ENABLE();
-            return GPIOB; // 15:0
-        case 2:
-            __HAL_RCC_GPIOC_CLK_ENABLE();
-            return GPIOC; // 15:0
-        case 3:
-            __HAL_RCC_GPIOD_CLK_ENABLE();
-            return GPIOD; // 15:0
-        case 4:
-            __HAL_RCC_GPIOE_CLK_ENABLE();
-            return GPIOE; // 15:0
-        case 5:
-            __HAL_RCC_GPIOF_CLK_ENABLE();
-            return GPIOF; // 15:0
-        case 6:
-            __HAL_RCC_GPIOG_CLK_ENABLE();
-            return GPIOG; // 15:0
-        case 7:
-            __HAL_RCC_GPIOH_CLK_ENABLE();
-            return GPIOH; // 15:0
-        case 8:
-            __HAL_RCC_GPIOI_CLK_ENABLE();
-            return GPIOI; // 15:0
-        case 9:
-            __HAL_RCC_GPIOJ_CLK_ENABLE();
-            return GPIOJ; // 15:0
-        case 10:
-            __HAL_RCC_GPIOK_CLK_ENABLE();
-            return GPIOK; // 7:0
-        default:
-            return NULL;
+    case 0:
+        __HAL_RCC_GPIOA_CLK_ENABLE();
+        return GPIOA;
+    case 1:
+        __HAL_RCC_GPIOB_CLK_ENABLE();
+        return GPIOB;
+    case 2:
+        __HAL_RCC_GPIOC_CLK_ENABLE();
+        return GPIOC;
+    case 3:
+        __HAL_RCC_GPIOD_CLK_ENABLE();
+        return GPIOD;
+    case 4:
+        __HAL_RCC_GPIOE_CLK_ENABLE();
+        return GPIOE;
+    case 5:
+        __HAL_RCC_GPIOF_CLK_ENABLE();
+        return GPIOF;
+    case 6:
+        __HAL_RCC_GPIOG_CLK_ENABLE();
+        return GPIOG;
+    case 7:
+        __HAL_RCC_GPIOH_CLK_ENABLE();
+        return GPIOH;
+    case 8:
+        __HAL_RCC_GPIOI_CLK_ENABLE();
+        return GPIOI;
+    case 9:
+        __HAL_RCC_GPIOJ_CLK_ENABLE();
+        return GPIOJ;
+    case 10:
+        __HAL_RCC_GPIOK_CLK_ENABLE();
+        return GPIOK;
+    default:
+        return NULL;
     }
 }
 
-// function
-// port num : 0=A, 1=B, ... , 10=K  // K[7:0]
-bool gpioExtWrite(uint8_t port_idx, uint8_t pin_num, uint8_t state) {
-    if (pin_num > 15) return false;
-    if ((port_idx == 10) && (pin_num > 7)) return false;
+static bool gpioIsValidExtPin(uint8_t port_idx, uint8_t pin_num)
+{
+    if (pin_num > 15U) {
+        return false;
+    }
 
-    GPIO_InitTypeDef GPIO_InitStruct = {0};
-    GPIO_InitStruct.Pin = (1 << pin_num);
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(getPortPtr(port_idx), &GPIO_InitStruct);
+    if ((port_idx == 10U) && (pin_num > 7U)) {
+        return false;
+    }
 
-    GPIO_TypeDef *pPort = getPortPtr(port_idx);
+    return gpioGetPortPtr(port_idx) != NULL;
+}
 
-    if (pPort == NULL) return false;
+bool gpioPinInit(GPIO_TypeDef *port, uint16_t pin, uint32_t mode, uint32_t pull)
+{
+    GPIO_InitTypeDef gpio_init = {0};
 
-    uint16_t pin_mask = (1 << pin_num);
-    HAL_GPIO_WritePin(pPort, pin_mask, (state > 0) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+    if (port == NULL || pin == 0U) {
+        return false;
+    }
+
+    gpio_init.Pin = pin;
+    gpio_init.Mode = mode;
+    gpio_init.Pull = pull;
+    gpio_init.Speed = GPIO_SPEED_FREQ_LOW;
+
+    HAL_GPIO_Init(port, &gpio_init);
 
     return true;
 }
 
-int8_t gpioExtRead(uint8_t port_idx, uint8_t pin_num) {
-    // 1: high, 0: low, -1: error
-    if (pin_num > 15) return -1; // error
-    if ((port_idx == 10) && (pin_num > 7)) return -1;
+bool gpioExtInit(uint8_t port_idx, uint8_t pin_num, uint32_t mode)
+{
+    return gpioExtInitPull(port_idx, pin_num, mode, GPIO_NOPULL);
+}
 
-    // 입력, 출력 두 가지 모드를 구분해야함
-    GPIO_InitTypeDef GPIO_InitStruct = {0};
-    GPIO_InitStruct.Pin = (1 << pin_num);
-    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(getPortPtr(port_idx), &GPIO_InitStruct);
+bool gpioExtInitPull(uint8_t port_idx, uint8_t pin_num, uint32_t mode, uint32_t pull)
+{
+    GPIO_TypeDef *port;
 
-    GPIO_TypeDef *pPort = getPortPtr(port_idx);
+    if (gpioIsValidExtPin(port_idx, pin_num) == false) {
+        return false;
+    }
 
-    if (pPort == NULL) return -1; // error
+    port = gpioGetPortPtr(port_idx);
 
-    uint16_t pin_mask = (1 << pin_num);
+    return gpioPinInit(port, (uint16_t)(1UL << pin_num), mode, pull);
+}
 
-    return HAL_GPIO_ReadPin(pPort, pin_mask) == GPIO_PIN_SET ? 1 : 0;
-}   // 지속적으로 초기화 >> 비효율적 // 풀다운 저항 꼭 해야함
+bool gpioPinWrite(GPIO_TypeDef *port, uint16_t pin, bool state)
+{
+    if (port == NULL || pin == 0U) {
+        return false;
+    }
+
+    HAL_GPIO_WritePin(port, pin, state ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
+    return true;
+}
+
+bool gpioExtWrite(uint8_t port_idx, uint8_t pin_num, uint8_t state)
+{
+    GPIO_TypeDef *port;
+
+    if (gpioIsValidExtPin(port_idx, pin_num) == false) {
+        return false;
+    }
+
+    port = gpioGetPortPtr(port_idx);
+
+    return gpioPinWrite(port, (uint16_t)(1UL << pin_num), state > 0U);
+}
+
+int8_t gpioPinRead(GPIO_TypeDef *port, uint16_t pin)
+{
+    if (port == NULL || pin == 0U) {
+        return -1;
+    }
+
+    return HAL_GPIO_ReadPin(port, pin) == GPIO_PIN_SET ? 1 : 0;
+}
+
+int8_t gpioExtRead(uint8_t port_idx, uint8_t pin_num)
+{
+    GPIO_TypeDef *port;
+
+    if (gpioIsValidExtPin(port_idx, pin_num) == false) {
+        return -1;
+    }
+
+    port = gpioGetPortPtr(port_idx);
+
+    return gpioPinRead(port, (uint16_t)(1UL << pin_num));
+}

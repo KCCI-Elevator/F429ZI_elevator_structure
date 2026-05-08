@@ -30,10 +30,10 @@ static uart_tbl_t uart_tbl[UART_CH_MAX] = {
     },
 
     [UART_CH_ESP8266] = {
-        .huart = &huart6, 
-        .instance = USART6, 
-        .rx_q = NULL, 
-        .tx_mutex = NULL, 
+        .huart = &huart6,
+        .instance = USART6,
+        .rx_q = NULL,
+        .tx_mutex = NULL,
         .rx_data = 0
     }
 };
@@ -86,7 +86,7 @@ bool uartOpen(uint8_t ch, uint32_t baudrate) {
     huart = uart_tbl[ch].huart;
 
     /*
-     * 이미 수신 인터럽트가 걸려 있을 수 있으므로 먼저 중단합니다.
+     * ì´ë¯¸ ìˆ˜ì‹  ì¸í„°ëŸ½íŠ¸ê°€ ê±¸ë ¤ ìžˆì„ ìˆ˜ ìžˆìœ¼ë¯€ë¡œ ë¨¼ì € ì¤‘ë‹¨í•©ë‹ˆë‹¤.
      */
     HAL_UART_AbortReceive_IT(huart);
 

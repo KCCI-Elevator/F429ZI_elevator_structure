@@ -16,4 +16,3 @@ my_gpio.c/h  → HAL_GPIO_ReadPin/WritePin 감싸기
 my_pwm.c/h   → TIM PWM start, duty 설정
 my_adc.c/h   → ADC start, read
 my_can.c/h   → CAN tx/rx
-my_uart.c/h  → 각 uart별 RX/TX, ch0 huart3 debug 모드, ch1 huart6 esp8266 모드
