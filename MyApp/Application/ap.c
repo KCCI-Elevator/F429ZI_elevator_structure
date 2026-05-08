@@ -68,7 +68,7 @@ void apInit(void) {
     }
     
     // Safety 모듈 초기화 (필요 시)
-    Safety_Init();
+   // Safety_Init();
 
 }
 
