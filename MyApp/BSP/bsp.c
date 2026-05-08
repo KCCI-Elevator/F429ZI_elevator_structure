@@ -14,6 +14,7 @@
 #ifdef MCU_F429
 
 static bsp_elevator_input_t s_elevator_input;
+osMutexId_t i2cMutexHandle = NULL;
 
 /* Port index: 0=A, 1=B, ... , 10=K */
 #define BSP_BTN_FLOOR_1_PORT        0U
@@ -54,6 +55,55 @@ static bsp_elevator_input_t s_elevator_input;
 
 static uint32_t s_wifi_tx_prev_time = 0;
 static uint32_t s_wifi_rx_prev_time = 0;
+
+//과전류 디바운스 설정(기동전류땜에 튀는거 무시)
+#define CURRENT_DEBOUNCE_THRESHOLD 15U //연속 15회 이상일 때만 확정
+#define CURRENT_NOISE_FREE_COUNT   5U //연속 5회 이상 낮아야 정상으로 복구
+
+//전류 쓰레숄드
+static float bsp_current_threshold =500.0f;//일단 500으로 설정.
+static uint16_t bsp_debounce_cnt = 0;
+static bool bsp_is_overload_confirmed = false;
+
+/**
+ * @brief  과전류 판단 기준값(Threshold)을 설정합니다.
+ * @param  threshold_ma: 설정할 전류 기준치 (mA)
+ */
+void bspSetCurrentThreshold(float threshold_ma) {
+  bsp_current_threshold = threshold_ma;
+}
+
+/**
+ * @brief  현재 읽은 전류값을 바탕으로 과전류 여부를 판단하여 결과를 반환합니다.
+ * @param  current_ma: 실시간으로 읽어온 전류값 (mA)(절댓값)
+ * @return true(과전류), false(정상)
+ */
+bool bspCheckOverCurrent(float current_ma) {
+  float abs_current = fabsf(current_ma);
+
+  if (abs_current >= bsp_current_threshold) {
+    if (bsp_debounce_cnt < CURRENT_DEBOUNCE_THRESHOLD) {
+      bsp_debounce_cnt++;
+    }
+    // 카운트가 임계치에 도달하면 과전류 확정
+    if (bsp_debounce_cnt >= CURRENT_DEBOUNCE_THRESHOLD) {
+      bsp_is_overload_confirmed = true;
+    }
+  }
+  else {
+    // 기준치 미달 시 카운트를 깎음 (서서히 복구)
+    if (bsp_debounce_cnt > 0) {
+      bsp_debounce_cnt--;
+    } else {
+      bsp_is_overload_confirmed = false;
+    }
+  }
+
+  // 구조체 업데이트 및 리턴
+  s_elevator_input.emergency_stop = bsp_is_overload_confirmed;
+  s_elevator_input.motor_over_current = bsp_is_overload_confirmed;
+  return s_elevator_input.motor_over_current;
+}
 
 static bool bspIsValidFloor(uint8_t floor)
 {

@@ -54,6 +54,9 @@ void bspUpdate(void);
 uint32_t bspMillis(void);
 void bspDelay(uint32_t delay_ms);
 
+void bspSetCurrentThreshold(float threshold_ma);
+bool bspCheckOverCurrent(float current_ma);
+
 void bspElevatorReadInput(bsp_elevator_input_t *input);
 void bspSetCurrentFloor(uint8_t floor);
 void bspSetFloorValid(bool valid);

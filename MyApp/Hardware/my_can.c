@@ -1,11 +1,15 @@
 #include "my_can.h"
-
 #include <string.h>
+
+// 수신 큐 사이즈 정의 (필요에 따라 조절)
+#define CAN_RX_QUEUE_SIZE 16U
 
 extern CAN_HandleTypeDef hcan1;
 
-static volatile uint8_t s_can_rx_flag = 0;
-static can_frame_t s_can_rx_frame;
+// 원형 큐 변수 선언
+static can_frame_t s_can_rx_queue[CAN_RX_QUEUE_SIZE];
+static volatile uint8_t s_can_rx_head = 0;
+static volatile uint8_t s_can_rx_tail = 0;
 
 volatile uint8_t can_init_status = 0;
 volatile uint32_t can_rx_callback_count = 0;
@@ -77,13 +81,17 @@ bool canReceive(can_frame_t *frame)
         return false;
     }
 
-    if (s_can_rx_flag == 0U) {
+    // 큐가 비어있는지 확인
+    if (s_can_rx_head == s_can_rx_tail) {
         return false;
     }
 
     __disable_irq();
-    memcpy(frame, &s_can_rx_frame, sizeof(can_frame_t));
-    s_can_rx_flag = 0;
+
+    // 큐에서 데이터 읽기 (Pop)
+    memcpy(frame, &s_can_rx_queue[s_can_rx_tail], sizeof(can_frame_t));
+    s_can_rx_tail = (s_can_rx_tail + 1U) % CAN_RX_QUEUE_SIZE;
+
     __enable_irq();
 
     return true;
@@ -92,8 +100,12 @@ bool canReceive(can_frame_t *frame)
 void canResetRx(void)
 {
     __disable_irq();
-    memset(&s_can_rx_frame, 0, sizeof(s_can_rx_frame));
-    s_can_rx_flag = 0;
+
+    // 큐 인덱스 및 버퍼 초기화
+    s_can_rx_head = 0;
+    s_can_rx_tail = 0;
+    memset(s_can_rx_queue, 0, sizeof(s_can_rx_queue));
+
     __enable_irq();
 }
 
@@ -112,19 +124,31 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
         return;
     }
 
-    can_rx_callback_count++;
+    // 하드웨어 FIFO에 메시지가 남아있는 동안 모두 읽어 큐에 저장
+    while (HAL_CAN_GetRxFifoFillLevel(hcan, CAN_RX_FIFO0) > 0U) {
 
-    if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &header, data) != HAL_OK) {
-        return;
-    }
+        can_rx_callback_count++;
 
-    __disable_irq();
-    s_can_rx_frame.id = (header.IDE == CAN_ID_STD) ? header.StdId : header.ExtId;
-    s_can_rx_frame.len = header.DLC > 8U ? 8U : header.DLC;
-    memcpy(s_can_rx_frame.data, data, s_can_rx_frame.len);
-    if (s_can_rx_frame.len < 8U) {
-        memset(&s_can_rx_frame.data[s_can_rx_frame.len], 0, 8U - s_can_rx_frame.len);
+        if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &header, data) != HAL_OK) {
+            continue;
+        }
+
+        uint8_t next_head = (s_can_rx_head + 1U) % CAN_RX_QUEUE_SIZE;
+
+        // 큐 오버플로우 방지 (가득 차지 않았을 때만 저장)
+        if (next_head != s_can_rx_tail) {
+            s_can_rx_queue[s_can_rx_head].id = (header.IDE == CAN_ID_STD) ? header.StdId : header.ExtId;
+            s_can_rx_queue[s_can_rx_head].len = (header.DLC > 8U) ? 8U : header.DLC;
+
+            memcpy(s_can_rx_queue[s_can_rx_head].data, data, s_can_rx_queue[s_can_rx_head].len);
+
+            if (s_can_rx_queue[s_can_rx_head].len < 8U) {
+                memset(&s_can_rx_queue[s_can_rx_head].data[s_can_rx_queue[s_can_rx_head].len],
+                       0,
+                       8U - s_can_rx_queue[s_can_rx_head].len);
+            }
+
+            s_can_rx_head = next_head;
+        }
     }
-    s_can_rx_flag = 1;
-    __enable_irq();
 }

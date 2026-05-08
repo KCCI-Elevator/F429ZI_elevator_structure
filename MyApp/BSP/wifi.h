@@ -3,6 +3,7 @@
 
 #include "def.h"
 #include "esp8266.h"
+#include "bsp.h"
 
 typedef enum {
     WIFI_STATE_INIT = 0,

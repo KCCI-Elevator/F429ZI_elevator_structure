@@ -1,10 +1,11 @@
 #include "ap.h"
-
 #include "bsp.h"
 #include "elevator.h"
 #include "elevator_controller.h"
-
+#include "ina219.h"
 #include "cmsis_os2.h"
+#include "i2c.h"
+#include "safety_monitor.h"
 
 static elevator_t s_elevator;
 static volatile bool s_app_ready = false;
@@ -106,18 +107,21 @@ void StartDefaultTask(void *argument)
 
 void motorTask(void *argument)
 {
-    uint32_t tick_count;
+    Safety_Init();
+    uint32_t tick_count = osKernelGetTickCount();
 
-    (void)argument;
-
-    while (s_app_ready == false) {
-        osDelay(1);
-    }
-
-    tick_count = osKernelGetTickCount();
+    while (s_app_ready == false) osDelay(1);
 
     while (1) {
+        // 1. 센서 데이터 취득
+        float current = INA219_ReadCurrent_mA(&hi2c1);
+
+        // 2. 안전 감시 (이상 발생 시 내부에서 EmergencyStop 호출)
+        Safety_Update(current);
+
+        // 3. 제어기 업데이트 (내부에서 Safety 상태 확인 후 구동 결정)
         Elevator_Controller_Update();
+
         tick_count += 10U;
         osDelayUntil(tick_count);
     }

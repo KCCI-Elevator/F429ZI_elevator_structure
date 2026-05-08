@@ -6,6 +6,9 @@ cmake_minimum_required(VERSION 3.22)
 #
 # User is free to modify the file as much as necessary
 #
+# CMakeLists.txt // MCU F429
+add_compile_definitions(MCU_F429)
+#add_compile_definitions(MCU_BLUEPILL)
 
 # Setup compiler settings
 set(CMAKE_C_STANDARD 11)
@@ -32,7 +35,11 @@ message("Build type: " ${CMAKE_BUILD_TYPE})
 enable_language(C ASM)
 
 # Create an executable object type
-add_executable(${CMAKE_PROJECT_NAME})
+add_executable(${CMAKE_PROJECT_NAME}
+        MyApp/Driver/ina219.c
+        MyApp/Driver/ina219.h
+        MyApp/Application/safety_monitor.c
+        MyApp/Application/safety_monitor.h)
 
 # Add STM32CubeMX generated sources
 add_subdirectory(cmake/stm32cubemx)
