@@ -9,7 +9,7 @@
 #include "ina219.h"
 
 void Safety_Init() {
-  if (INA219_Init(&hi2c1) != OK) {
+  if (INA219_Init(&hi2c2) != OK) {
     return;
   } else {
     bspSetCurrentThreshold(500.0f);

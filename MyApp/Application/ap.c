@@ -114,7 +114,7 @@ void motorTask(void *argument)
 
     while (1) {
         // 1. 센서 데이터 취득
-        float current = INA219_ReadCurrent_mA(&hi2c1);
+        float current = INA219_ReadCurrent_mA(&hi2c2);
 
         // 2. 안전 감시 (이상 발생 시 내부에서 EmergencyStop 호출)
         Safety_Update(current);
