@@ -100,6 +100,7 @@ bool bspCheckOverCurrent(float current_ma) {
   }
 
   // 구조체 업데이트 및 리턴
+  s_elevator_input.special_state = bsp_is_overload_confirmed ? BSP_STATE_EMERGENCY_STOP : BSP_STATE_NORMAL;
   s_elevator_input.emergency_stop = bsp_is_overload_confirmed;
   s_elevator_input.motor_over_current = bsp_is_overload_confirmed;
   return s_elevator_input.motor_over_current;

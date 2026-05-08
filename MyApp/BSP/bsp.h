@@ -22,7 +22,8 @@ typedef enum {
 typedef enum {
     BSP_STATE_NORMAL = 0,
     BSP_STATE_INSPECTION,
-    BSP_STATE_MOVING
+    BSP_STATE_MOVING,
+    BSP_STATE_EMERGENCY_STOP
 } bsp_special_state_t;
 
 typedef struct {

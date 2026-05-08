@@ -19,12 +19,15 @@
 - BSP
   - wifi.c
     - Emergency Stop 및 Current Limit Set 처리 로직 추가
-  - bsp.c
+  - bsp.c/.h
     - bspSetCurrentThreshold added.
     - bspCheckOverCurrent added.
+    - BSP_STATE_EMERGENCY_STOP 로직 추가
 
 - Driver
   - ina219.c/.h 추가
+  - oled_spi.c
+    - emergency stop 표시 기능 추가
 
 - Hardware
   - my_can.c

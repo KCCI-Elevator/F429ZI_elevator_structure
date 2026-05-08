@@ -213,7 +213,8 @@ void f429_oled_ui_update(uint8_t floor, uint8_t lift_dir, uint8_t special_state,
 
     if (special_state == 1U) oled_show_scaled_string(8, 55, "INSP", 2, 1);
     else if (special_state == 2U) oled_show_scaled_string(8, 55, "MOVE", 2, 1);
-    else oled_show_scaled_string(8, 55, "NORM", 2, 1);
+    else if (special_state == 3U) oled_show_scaled_string(8, 55, "NORM", 2, 1);
+    else oled_show_scaled_string(8, 55, "STOP", 2, 1);
 
     for (int i = 1; i <= 3; i++) {
         uint8_t bx = 4 + (i - 1) * 20;

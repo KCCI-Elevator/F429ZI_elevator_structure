@@ -20,6 +20,7 @@ void Safety_Update(float current_ma) {
   // 2. 만약 BSP가 과전류라고 확정(디바운스 완료)했다면
   if (bspCheckOverCurrent(current_ma)) {
     // [결정] 시스템을 즉시 멈추고 안전 상태를 false로 만듦
+
     Elevator_EmergencyStop();
   }
 }

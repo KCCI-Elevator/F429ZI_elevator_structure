@@ -199,6 +199,7 @@ void Elevator_EmergencyStop() {
   //모터 방향 및 속도 제어기 완전정지
   motorStop(); //소프트웨어적인 정지 절차. pwm을 0으로 설정, 모터 드라이버의 입력핀을 모두 low로 설정.
 
+
   //소프트웨어 상태 리셋
   sys_state = ELEVATOR_IDLE;
   PI_Reset(&my_pi);//그동안 쌓여있던 오차 지움. 재가동시 튀는 현상 방지.
