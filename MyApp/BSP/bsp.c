@@ -74,34 +74,29 @@ void bspSetCurrentThreshold(float threshold_ma) {
  * @return true(과전류), false(정상)
  */
 bool bspCheckOverCurrent(float current_ma) {
-
-    //절댓값 취하기
     float abs_current = fabsf(current_ma);
     
-   if (abs_current >= bsp_current_threshold) {
-        // 기준치 초과 시 카운트 증가
+    if (abs_current >= bsp_current_threshold) {
         if (bsp_debounce_cnt < CURRENT_DEBOUNCE_THRESHOLD) {
             bsp_debounce_cnt++;
         }
-     else {
-        // 기준치 미달 시 즉시 카운트 초기화
-        bsp_is_overload_confirmed = true;
+        // 카운트가 임계치에 도달하면 과전류 확정
+        if (bsp_debounce_cnt >= CURRENT_DEBOUNCE_THRESHOLD) {
+            bsp_is_overload_confirmed = true;
+        }
+    } 
+    else {
+        // 기준치 미달 시 카운트를 깎음 (서서히 복구)
+        if (bsp_debounce_cnt > 0) {
+            bsp_debounce_cnt--;
+        } else {
+            bsp_is_overload_confirmed = false;
+        }
     }
-}
-else {
-    // 기준치 보다 낮을 때 (카운트를 깎거나 즉시 리셋)
-    //여기서는 버튼 디바운스처럼 서서히 깎아서 복구 신뢰도를 높임
-    if(bsp_debounce_cnt > 0) {
-        bsp_debounce_cnt--;
-    }else {
-        bsp_is_overload_confirmed = false;
-    }
-}
 
-elevator_input.motor_over_current = bsp_is_overload_confirmed;
-return bsp_is_overload_confirmed;
-
-   
+    // 구조체 업데이트 및 리턴
+    elevator_input.motor_over_current = bsp_is_overload_confirmed;
+    return elevator_input.motor_over_current;
 }
 
 

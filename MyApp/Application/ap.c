@@ -9,12 +9,13 @@
 #include "elevator_monitor.h"
 #include "elevator_sequence.h"
 #include "my_uart.h"
+#include "safety_monitor.h"
 
 extern I2C_HandleTypeDef hi2c1;
 extern osMutexId_t i2cMutexHandle; //cubeMX에서 Mutex 추가 필요
 
 float g_avg_current = 0.0f; // apMain출력을 위한 공유 변수
-bool g_is_system_halted = false;
+
 static bool g_is_current_sensor_ready = false;
 #define MOTOR_TASK_PERIOD_MS                10U
 #define OVERCURRENT_RELEASE_COUNT           100U  // 1s(10ms*100) 연속 정상 시 정지 해제
@@ -36,41 +37,20 @@ void StartDefaultTask(void *argument) {
 void motorTask(void *argument) {
     uint32_t tick_count = osKernelGetTickCount(); 
 
+    while (s_app_ready == false) osDelay(1);
+
     while (1) {
-        // 1. 전류 읽기
-        if (g_is_current_sensor_ready) {
-            g_avg_current = INA219_ReadCurrent_mA(&hi2c1);
-        } else {
-            g_avg_current = 0.0f;
-        }
+        // 1. 센서 데이터 취득
+        float current = INA219_ReadCurrent_mA(&hi2c1);
 
-        // 2. BSP 로직 (내부에서 2회 연속 감지 시 true 반환)
-        if (bspCheckOverCurrent(g_avg_current)) {
-            // [정지] 이미 필터링된 결과이므로 즉시 정지
-            if (!g_is_system_halted) {
-                Elevator_EmergencyStop();
-                g_is_system_halted = true;
-                g_normal_current_count = 0; // 복구 카운트 초기화
-                uartPrintf(0, "!!! STOP: Overcurrent %.1f mA !!!\r\n", g_avg_current);
-            }
-        } else {
-            // [복구] 정상 전류일 때, 정지 상태라면 복구 카운트 진행
-            if (g_is_system_halted) {
-                if (++g_normal_current_count >= OVERCURRENT_RELEASE_COUNT) {
-                    g_is_system_halted = false;
-                    g_normal_current_count = 0;
-                    uartPrintf(0, "RECOVER: Current normal %.1f mA\r\n", g_avg_current);
-                }
-            }
-        }
+        // 2. 안전 감시 (이상 발생 시 내부에서 EmergencyStop 호출)
+        Safety_Update(current);
 
-        // 3. 모터 제어 업데이트 (정지 상태가 아닐 때만)
-        if(!g_is_system_halted) {
-            Elevator_Controller_Update();
-        }
-        
-        tick_count += MOTOR_TASK_PERIOD_MS;
-        osDelayUntil(tick_count); 
+        // 3. 제어기 업데이트 (내부에서 Safety 상태 확인 후 구동 결정)
+        Elevator_Controller_Update();
+
+        tick_count += 10U;
+        osDelayUntil(tick_count);
     }
 }
 
@@ -79,14 +59,16 @@ void apInit(void) {
     bspInit();
     uartInit();
     Elevator_Controller_Init();
-    //전류센서 초기
-    g_is_current_sensor_ready = (INA219_Init(&hi2c1) == HAL_OK);
-    if (!g_is_current_sensor_ready) {
-        uartPrintf(0, "INA219 init fail: check I2C wiring/address\r\n");
+    // 전류 센서 초기화 확인
+    if (INA219_Init(&hi2c1) != HAL_OK) {
+        uartPrintf(0, "INA219 Init Fail!\r\n");
     } else {
-        bspSetCurrentThreshold(400.0f);
-        uartPrintf(0,"Elevator System Ready. Current Monitoring Active.\r\n");
+        // BSP를 통해 감시 기준값 설정 (예: 500mA)
+        bspSetCurrentThreshold(500.0f); 
     }
+    
+    // Safety 모듈 초기화 (필요 시)
+    Safety_Init();
 
 }
 
@@ -95,7 +77,7 @@ void apMain(void) {
     //상태보고
     Elevator_ReportStatus();
 
-    if(g_is_system_halted) {
+    if(!Safety_IsSystemSafe()) {
         osDelay(100);
         return;
     }

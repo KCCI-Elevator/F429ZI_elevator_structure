@@ -108,6 +108,13 @@ bool Elevator_IsBusy(void) {
 }
 
 void Elevator_Controller_Update() {
+    // 물리적 논리적 안전 최우선 검사
+    //Safety 모듈에서 부적합 판정을 내리면 로직 즉시 종료
+    if(Safety_IsSystemSafe() == false) {
+        motorStop();
+        sys_state = ELEVATOR_IDLE;
+        return;
+    }
 
     if (sys_state == ELEVATOR_IDLE) return;
 
@@ -189,7 +196,16 @@ void Elevator_Controller_Update() {
         motorSetSpeed(cmd_dir, (uint32_t)final_pwm);
     }
 }
-
+//비상정지
 void Elevator_EmergencyStop() {
-    __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_3, 0);
+    __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_3, 0); //듀티비 0으
+
+    //모터 방향 및 속도 제어기 완전정지
+    motorStop(); //소프트웨어적인 정지 절차. pwm을 0으로 설정, 모터 드라이버의 입력핀을 모두 low로 설정. 
+
+    //소프트웨어 상태 리셋
+    sys_state = ELEVATOR_IDLE;
+    PI_Reset(&my_pi);//그동안 쌓여있던 오차 지움. 재가동시 튀는 현상 방지.
+
+    MP_SetTarget(&myPlanner, 0.0f);//남은 이동 경로 삭제.
 }
