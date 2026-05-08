@@ -1,4 +1,5 @@
 #include "esp8266.h"
+#include "hw.h"
 #include "my_uart.h"
 
 #include <stdio.h>
@@ -287,9 +288,9 @@ static esp8266_result_t esp8266_WaitResponse(
 
     if (ctx == NULL || expect == NULL) return ESP8266_ERROR;
 
-    start_time = HAL_GetTick();
+    start_time = hwMillis();
 
-    while ((HAL_GetTick() - start_time) < timeout_ms) {
+    while ((hwMillis() - start_time) < timeout_ms) {
         esp8266_Process(ctx);
 
         if (esp8266_Contains(ctx, expect) != 0) return ESP8266_OK;
