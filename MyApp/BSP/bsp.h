@@ -20,6 +20,12 @@ typedef enum {
     BSP_DOOR_CLOSE
 } bsp_door_dir_t;
 
+typedef enum {
+    BSP_STATE_NORMAL = 0,
+    BSP_STATE_INSPECTION,
+    BSP_STATE_MOVING
+} bsp_special_state_t;
+
 typedef struct {
     bool floor_valid;
     uint8_t current_floor;
@@ -35,6 +41,8 @@ typedef struct {
 
     bool emergency_stop;
     bool motor_over_current;
+    
+    bsp_special_state_t special_state; 
 } bsp_elevator_input_t;
 
 // function
